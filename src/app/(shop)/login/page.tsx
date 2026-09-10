@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 
-export default function LoginPage() {
+function LoginFormContent() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -13,11 +14,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    const cleanEmail = email.trim().toLowerCase();
 
     try {
       if (mode === "register") {
@@ -25,7 +30,7 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({ name: name.trim(), email: cleanEmail, password }),
         });
 
         if (!res.ok) {
@@ -37,10 +42,10 @@ export default function LoginPage() {
       }
 
       const result = await signIn("credentials", {
-        email,
+        email: cleanEmail,
         password,
         redirect: false,
-        callbackUrl: "/",
+        callbackUrl,
       });
 
       if (result?.error) {
@@ -49,8 +54,9 @@ export default function LoginPage() {
             ? "E-mail ou senha inválidos."
             : "Conta criada, mas houve um erro ao entrar. Tente fazer login."
         );
-      } else if (result?.url) {
-        window.location.href = result.url;
+      } else {
+        // Redireciona com segurança mesmo se result.url for nulo/indefinido
+        window.location.href = result?.url || callbackUrl || "/";
       }
     } catch {
       setError("Erro inesperado. Tente novamente.");
@@ -60,7 +66,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleSignIn = () => {
-    signIn("google", { callbackUrl: "/" });
+    signIn("google", { callbackUrl });
   };
 
   return (
@@ -260,5 +266,19 @@ export default function LoginPage() {
         .
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-md mx-auto px-4 py-12 flex items-center justify-center min-h-[400px]">
+          <div className="text-night-400 text-sm">Carregando...</div>
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
   );
 }

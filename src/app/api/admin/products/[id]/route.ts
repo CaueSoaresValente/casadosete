@@ -120,15 +120,17 @@ export async function PUT(
       // Re-create images
       await tx.productImage.deleteMany({ where: { productId: id } });
       if (data.images && data.images.length > 0) {
-        await tx.productImage.createMany({
-          data: data.images.map((img) => ({
-            productId: id,
-            url: img.url,
-            altText: img.altText,
-            sortOrder: img.sortOrder,
-            isPrimary: img.isPrimary,
-          })),
-        });
+        for (const img of data.images) {
+          await tx.productImage.create({
+            data: {
+              productId: id,
+              url: img.url,
+              altText: img.altText,
+              sortOrder: img.sortOrder,
+              isPrimary: img.isPrimary,
+            },
+          });
+        }
       }
 
       return p;

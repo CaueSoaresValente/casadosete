@@ -67,7 +67,7 @@ export default function TermosDeUsoPage() {
             3. Pagamento
           </h2>
           <p>
-            Aceitamos pagamento via PIX, cartão de crédito (até 12x sem juros),
+            Aceitamos pagamento via PIX, cartão de crédito (até 12x),
             cartão de débito e boleto bancário. O processamento de pagamentos é
             realizado pelo gateway Mercado Pago, que possui seus próprios termos
             de serviço e política de privacidade.
@@ -157,7 +157,7 @@ export default function TermosDeUsoPage() {
                 casadosete77@gmail.com
               </a>
             </li>
-            <li>WhatsApp: (11) 99999-9999</li>
+            <li>WhatsApp: (11) 97667-2291</li>
           </ul>
         </section>
       </div>

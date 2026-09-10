@@ -141,15 +141,17 @@ export async function POST(request: Request) {
 
       // Create images
       if (data.images && data.images.length > 0) {
-        await tx.productImage.createMany({
-          data: data.images.map((img) => ({
-            productId: p.id,
-            url: img.url,
-            altText: img.altText,
-            sortOrder: img.sortOrder,
-            isPrimary: img.isPrimary,
-          })),
-        });
+        for (const img of data.images) {
+          await tx.productImage.create({
+            data: {
+              productId: p.id,
+              url: img.url,
+              altText: img.altText,
+              sortOrder: img.sortOrder,
+              isPrimary: img.isPrimary,
+            },
+          });
+        }
       }
 
       return p;

@@ -40,7 +40,12 @@ export async function proxy(request: NextRequest) {
       return response;
     }
 
-    const session = await auth();
+    let session = null;
+    try {
+      session = await auth();
+    } catch (authError) {
+      console.error("Erro ao verificar sessão no proxy:", authError);
+    }
 
     if (!session?.user) {
       const loginUrl = new URL("/gestao/login", request.url);
@@ -49,8 +54,12 @@ export async function proxy(request: NextRequest) {
     }
 
     if (session.user.role !== "ADMIN" && session.user.role !== "STAFF") {
-      // Usuário autenticado mas sem permissão — retorna 403
-      return new NextResponse("Acesso negado", { status: 403 });
+      // Usuário autenticado mas sem permissão de admin:
+      // Redireciona para o login do admin com indicação de erro em vez de tela preta "Acesso negado"
+      const loginUrl = new URL("/gestao/login", request.url);
+      loginUrl.searchParams.set("error", "unauthorized");
+      loginUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(loginUrl);
     }
   }
 
@@ -73,6 +82,6 @@ export const config = {
      * - favicon.ico, sitemap.xml, robots.txt
      * - Public assets
      */
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|assets/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|assets/|uploads/).*)",
   ],
 };

@@ -22,10 +22,16 @@ export async function POST(request: Request) {
     }
 
     const { name, email, password } = parsed.data;
+    const cleanEmail = email.trim().toLowerCase();
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: cleanEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     if (existingUser) {
@@ -41,8 +47,8 @@ export async function POST(request: Request) {
     // Create user
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: name.trim(),
+        email: cleanEmail,
         passwordHash,
         role: "CUSTOMER",
       },

@@ -209,7 +209,7 @@ export default function PoliticaPrivacidadePage() {
                 casadosete77@gmail.com
               </a>
             </li>
-            <li>WhatsApp: (11) 99999-9999</li>
+            <li>WhatsApp: (11) 97667-2291</li>
           </ul>
         </section>
       </div>

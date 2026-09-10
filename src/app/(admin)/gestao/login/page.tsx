@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Eye, EyeOff, Lock } from "lucide-react";
 
 function AdminLoginForm() {
@@ -14,6 +15,7 @@ function AdminLoginForm() {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/gestao";
+  const urlError = searchParams.get("error");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,7 @@ function AdminLoginForm() {
 
     try {
       const result = await signIn("credentials", {
-        email,
+        email: email.trim().toLowerCase(),
         password,
         redirect: false,
         callbackUrl,
@@ -30,8 +32,9 @@ function AdminLoginForm() {
 
       if (result?.error) {
         setError("E-mail ou senha inválidos.");
-      } else if (result?.url) {
-        window.location.href = result.url;
+      } else {
+        // Redireciona com segurança mesmo se result.url for nulo/indefinido
+        window.location.href = result?.url || callbackUrl || "/gestao";
       }
     } catch {
       setError("Erro ao fazer login. Tente novamente.");
@@ -39,6 +42,8 @@ function AdminLoginForm() {
       setLoading(false);
     }
   };
+
+  const displayError = error || (urlError === "unauthorized" ? "Esta conta não possui permissão de administrador. Faça login com credenciais autorizadas." : "");
 
   return (
     <form
@@ -51,9 +56,9 @@ function AdminLoginForm() {
         </div>
       </div>
 
-      {error && (
+      {displayError && (
         <div className="bg-ruby-500/10 border border-ruby-500/20 text-ruby-300 text-sm px-3 py-2 rounded-lg">
-          {error}
+          {displayError}
         </div>
       )}
 
@@ -157,6 +162,15 @@ export default function AdminLoginPage() {
         <p className="text-center text-xs text-night-500 mt-6">
           Área de gestão — acesso restrito a administradores
         </p>
+
+        <div className="text-center mt-3">
+          <Link
+            href="/"
+            className="text-xs text-night-400 hover:text-gold-400 transition-colors inline-block"
+          >
+            ← Voltar para a loja
+          </Link>
+        </div>
       </div>
     </div>
   );

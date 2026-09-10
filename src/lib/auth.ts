@@ -9,11 +9,12 @@ import type { UserRole } from "@prisma/client";
 
 const loginSchema = z.object({
   email: z.string().email("E-mail inválido"),
-  password: z.string().min(8, "Senha deve ter ao menos 8 caracteres"),
+  password: z.string().min(1, "Senha é obrigatória"),
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "casadosete-auth-secret-key-2026-production",
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -47,9 +48,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
+        const cleanEmail = email.trim().toLowerCase();
 
-        const user = await prisma.user.findUnique({
-          where: { email },
+        const user = await prisma.user.findFirst({
+          where: {
+            email: {
+              equals: cleanEmail,
+              mode: "insensitive",
+            },
+          },
         });
 
         if (!user || !user.passwordHash) return null;
@@ -70,14 +77,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role: UserRole }).role;
+        token.role = (user as { role?: UserRole }).role || "CUSTOMER";
+      }
+      // Garante que o role esteja sempre preenchido no token
+      if (!token.role && token.email) {
+        try {
+          const dbUser = await prisma.user.findFirst({
+            where: {
+              email: {
+                equals: token.email,
+                mode: "insensitive",
+              },
+            },
+            select: { id: true, role: true },
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.role = dbUser.role;
+          }
+        } catch {
+          // fallback silencioso
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as UserRole;
+        session.user.id = (token.id as string) || session.user.id;
+        session.user.role = (token.role as UserRole) || "CUSTOMER";
       }
       return session;
     },

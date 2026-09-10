@@ -59,7 +59,7 @@ export function Footer() {
                 PIX, cartão e boleto
               </p>
               <p className="text-xs text-night-300">
-                Até 12x sem juros
+                Até 12x no cartão
               </p>
             </div>
           </div>
@@ -111,13 +111,13 @@ export function Footer() {
             </p>
             <div className="space-y-2">
               <a
-                href="https://wa.me/5511999999999"
+                href="https://wa.me/5511976672291"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm text-night-300 hover:text-gold-400 transition-colors"
               >
                 <Phone className="w-4 h-4" />
-                <span>(11) 99999-9999</span>
+                <span>(11) 97667-2291</span>
               </a>
               <a
                 href="mailto:casadosete77@gmail.com"

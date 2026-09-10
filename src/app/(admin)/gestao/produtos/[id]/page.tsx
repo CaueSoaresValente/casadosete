@@ -181,6 +181,12 @@ export default function ProductFormPage({
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`A imagem "${file.name}" excede o limite de 5MB.`);
+          continue;
+        }
+
         const formData = new FormData();
         formData.append("file", file);
 
@@ -191,19 +197,28 @@ export default function ProductFormPage({
 
         if (res.ok) {
           const data = await res.json();
-          setImages((prev) => [
-            ...prev,
-            {
-              url: data.url,
-              altText: name || file.name,
-              sortOrder: prev.length,
-              isPrimary: prev.length === 0,
-            },
-          ]);
+          if (data.url) {
+            setImages((prev) => [
+              ...prev,
+              {
+                url: data.url,
+                altText: name || file.name.replace(/\.[^/.]+$/, ""),
+                sortOrder: prev.length,
+                isPrimary: prev.length === 0,
+              },
+            ]);
+            toast.success(`Foto "${file.name}" carregada com sucesso!`);
+          } else {
+            toast.error("Resposta inválida do servidor ao carregar imagem.");
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          toast.error(errData.error || `Erro ao enviar "${file.name}".`);
         }
       }
     } catch (err) {
       console.error("Upload error", err);
+      toast.error("Erro de conexão ao enviar imagem.");
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -268,13 +283,13 @@ export default function ProductFormPage({
         isActive: v.isActive,
       })),
       images: (() => {
-        const validImages = images.filter((img) => img.url.trim());
+        const validImages = images.filter((img) => img && typeof img.url === "string" && img.url.trim());
         const hasPrimary = validImages.some((img) => img.isPrimary);
         return validImages.map((img, idx) => ({
           url: img.url.trim(),
-          altText: img.altText || null,
-          sortOrder: img.sortOrder || idx,
-          isPrimary: hasPrimary ? img.isPrimary : idx === 0,
+          altText: img.altText?.trim() || null,
+          sortOrder: typeof img.sortOrder === "number" ? img.sortOrder : idx,
+          isPrimary: hasPrimary ? !!img.isPrimary : idx === 0,
         }));
       })(),
     };
