@@ -170,9 +170,13 @@ model Product {
   isActive         Boolean   @default(true) @map("is_active")
   isFeatured       Boolean   @default(false) @map("is_featured")
 
-  stock            Int       @default(0)
+  stock            Float     @default(0)
   stockUnit        String    @default("unit") @map("stock_unit") // "unit" or "kg"
   lowStockThreshold Float   @default(2) @map("low_stock_threshold")
+
+  sellsByUnit      Boolean   @default(true) @map("sells_by_unit")
+  unitWeightGrams  Float?    @map("unit_weight_grams")
+  pricePerKg       Decimal?  @db.Decimal(10, 2) @map("price_per_kg")
 
   orixa            String?
   entidade         String?

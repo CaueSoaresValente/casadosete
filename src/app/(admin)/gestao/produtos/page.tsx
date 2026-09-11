@@ -31,6 +31,9 @@ type Product = {
   stock: number;
   stockUnit: string;
   lowStockThreshold: number;
+  sellsByUnit?: boolean;
+  unitWeightGrams?: number | null;
+  pricePerKg?: number | string | null;
   createdAt: string;
   images: ProductImage[];
   categories: ProductCategory[];
@@ -275,7 +278,7 @@ export default function AdminProductsPage() {
                         const stockVal = product.variants.length > 0
                           ? totalStock(product.variants)
                           : product.stock;
-                        const unit = product.stockUnit === "kg" ? "kg" : "un";
+                        const isKg = product.stockUnit === "kg";
                         const threshold = product.lowStockThreshold || 2;
                         let colorClass = "text-emerald-600";
                         let icon = "🟢";
@@ -286,10 +289,23 @@ export default function AdminProductsPage() {
                           colorClass = "text-amber-600";
                           icon = "🟡";
                         }
+
+                        const grams = product.unitWeightGrams;
+                        const unitsEquiv = isKg && grams && grams > 0 && stockVal > 0
+                          ? Math.floor((stockVal * 1000) / grams)
+                          : null;
+
                         return (
-                          <span className={`text-sm font-medium ${colorClass}`}>
-                            {icon} {stockVal} {unit}
-                          </span>
+                          <div className="flex flex-col items-center">
+                            <span className={`text-sm font-medium ${colorClass}`}>
+                              {icon} {stockVal} {isKg ? "kg" : "un"}
+                            </span>
+                            {unitsEquiv !== null && (
+                              <span className="text-[11px] text-night-400 font-normal">
+                                (~{unitsEquiv} un de {grams}g)
+                              </span>
+                            )}
+                          </div>
                         );
                       })()}
                     </td>

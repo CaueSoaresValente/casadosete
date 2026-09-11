@@ -820,7 +820,7 @@ export default function AdminPedidosPage() {
                               >
                                 <span className="font-medium text-night-800">{product.name}</span>
                                 <span className="block text-xs text-night-400">
-                                  {formatPrice(product.basePrice * 100)} · Estoque: {product.stock}
+                                  {formatPrice(product.basePrice * 100)} · Estoque: {product.stock} {product.stockUnit === "kg" ? "kg" : "un"}
                                 </span>
                               </button>
                             )}

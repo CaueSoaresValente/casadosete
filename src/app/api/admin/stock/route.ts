@@ -104,7 +104,7 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
       }
 
-      const newStock = product.stock + adjustment;
+      const newStock = Math.round((product.stock + adjustment) * 1000) / 1000;
       if (newStock < 0) {
         return NextResponse.json(
           { error: `Estoque não pode ficar negativo. Atual: ${product.stock}` },

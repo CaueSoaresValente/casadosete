@@ -85,6 +85,9 @@ export default function ProductFormPage({
   const [stock, setStock] = useState(0);
   const [stockUnit, setStockUnit] = useState<"unit" | "kg">("unit");
   const [lowStockThreshold, setLowStockThreshold] = useState(2);
+  const [sellsByUnit, setSellsByUnit] = useState(true);
+  const [unitWeightGrams, setUnitWeightGrams] = useState("");
+  const [pricePerKg, setPricePerKg] = useState("");
   const [orixa, setOrixa] = useState("");
   const [entidade, setEntidade] = useState("");
   const [finalidade, setFinalidade] = useState("");
@@ -124,6 +127,9 @@ export default function ProductFormPage({
         setStock(p.stock ?? 0);
         setStockUnit(p.stockUnit || "unit");
         setLowStockThreshold(p.lowStockThreshold ?? 2);
+        setSellsByUnit(p.sellsByUnit ?? true);
+        setUnitWeightGrams(p.unitWeightGrams ? p.unitWeightGrams.toString() : "");
+        setPricePerKg(p.pricePerKg ? p.pricePerKg.toString() : "");
         setOrixa(p.orixa || "");
         setEntidade(p.entidade || "");
         setFinalidade(p.finalidade || "");
@@ -269,6 +275,9 @@ export default function ProductFormPage({
       stock,
       stockUnit,
       lowStockThreshold,
+      sellsByUnit,
+      unitWeightGrams: unitWeightGrams ? parseFloat(unitWeightGrams) : null,
+      pricePerKg: pricePerKg ? parseFloat(pricePerKg) : null,
       orixa: orixa || null,
       entidade: entidade || null,
       finalidade: finalidade || null,
@@ -446,9 +455,11 @@ export default function ProductFormPage({
           <p className="text-xs text-night-400 mb-4">
             Defina o preço de venda, promoções e custo do produto.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-night-700 mb-1">Preço base (R$) *</label>
+              <label className="block text-sm font-medium text-night-700 mb-1">
+                Preço base (R$) * {stockUnit === "kg" && <span className="text-xs text-night-400 font-normal">(ou por porção)</span>}
+              </label>
               <input
                 type="number"
                 step="0.01"
@@ -459,9 +470,25 @@ export default function ProductFormPage({
                 required
               />
               <p className="text-xs text-night-400 mt-1">
-                💡 Valor real pelo qual o cliente vai comprar.
+                💡 Valor padrão pelo qual o cliente compra no site.
               </p>
             </div>
+            {stockUnit === "kg" && (
+              <div>
+                <label className="block text-sm font-medium text-night-700 mb-1">Preço por kg (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={pricePerKg}
+                  onChange={(e) => setPricePerKg(e.target.value)}
+                  placeholder="Ex: 60.00"
+                  className="w-full px-3 py-2 rounded-lg border border-night-200 text-sm focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200"
+                />
+                <p className="text-xs text-night-400 mt-1">
+                  💡 Preço de referência por quilo para negociações e cálculos.
+                </p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-night-700 mb-1">Preço comparativo (R$)</label>
               <input
@@ -530,7 +557,7 @@ export default function ProductFormPage({
                 </button>
               </div>
               <p className="text-xs text-night-400 mt-1">
-                💡 Escolha se este produto é vendido por unidade ou por peso.
+                💡 Escolha se este produto é controlado por unidade ou por peso em kg.
               </p>
             </div>
             <div>
@@ -539,7 +566,7 @@ export default function ProductFormPage({
               </label>
               <input
                 type="number"
-                step={stockUnit === "kg" ? "0.1" : "1"}
+                step={stockUnit === "kg" ? "0.01" : "1"}
                 min="0"
                 value={stock}
                 onChange={(e) => setStock(parseFloat(e.target.value) || 0)}
@@ -547,7 +574,7 @@ export default function ProductFormPage({
                 required
               />
               <p className="text-xs text-night-400 mt-1">
-                💡 Quantidade disponível para venda agora.
+                💡 Quantidade física disponível para venda agora.
               </p>
               {stock === 0 && (
                 <p className="text-xs text-ruby-500 mt-1 flex items-center gap-1">
@@ -562,21 +589,92 @@ export default function ProductFormPage({
             </div>
             <div>
               <label className="block text-sm font-medium text-night-700 mb-1">
-                Alerta de estoque baixo
+                Alerta de estoque baixo ({stockUnit === "kg" ? "kg" : "unidades"})
               </label>
               <input
                 type="number"
-                step={stockUnit === "kg" ? "0.5" : "1"}
+                step={stockUnit === "kg" ? "0.1" : "1"}
                 min="0"
                 value={lowStockThreshold}
                 onChange={(e) => setLowStockThreshold(parseFloat(e.target.value) || 0)}
                 className="w-full px-3 py-2 rounded-lg border border-night-200 text-sm focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200"
               />
               <p className="text-xs text-night-400 mt-1">
-                💡 Quando o estoque atingir este número, você receberá um alerta por e-mail.
+                💡 Quando o estoque atingir este número, você receberá um alerta.
               </p>
             </div>
           </div>
+
+          {/* Opções de venda por unidade para produtos em kg */}
+          {stockUnit === "kg" && (
+            <div className="mt-5 pt-5 border-t border-night-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                <div className="flex items-start gap-3 p-3 bg-night-50 rounded-lg border border-night-100">
+                  <input
+                    type="checkbox"
+                    id="sellsByUnit"
+                    checked={sellsByUnit}
+                    onChange={(e) => setSellsByUnit(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-night-300 text-gold-500 focus:ring-gold-400 cursor-pointer"
+                  />
+                  <div>
+                    <label htmlFor="sellsByUnit" className="text-sm font-medium text-night-800 cursor-pointer">
+                      Vende por unidade também (anotação)
+                    </label>
+                    <p className="text-xs text-night-400 mt-0.5">
+                      Indica que este item pode ser fracionado ou vendido em unidades separadas numa negociação por fora.
+                    </p>
+                  </div>
+                </div>
+
+                {sellsByUnit && (
+                  <div>
+                    <label className="block text-sm font-medium text-night-700 mb-1">
+                      Peso de uma unidade (em gramas)
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="1"
+                      value={unitWeightGrams}
+                      onChange={(e) => setUnitWeightGrams(e.target.value)}
+                      placeholder="Ex: 250 (para uma vela de 250g)"
+                      className="w-full px-3 py-2 rounded-lg border border-night-200 text-sm focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-200"
+                    />
+                    <p className="text-xs text-night-400 mt-1">
+                      💡 Peso de 1 unidade para cálculo da equivalência visual abaixo.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Card de Equivalência Visual */}
+              {(() => {
+                const grams = parseFloat(unitWeightGrams);
+                if (sellsByUnit && grams > 0 && stock > 0) {
+                  const totalGrams = stock * 1000;
+                  const units = Math.floor(totalGrams / grams);
+                  const remGrams = Math.round(totalGrams % grams);
+                  return (
+                    <div className="mt-4 p-3.5 bg-amber-50/80 border border-amber-200 rounded-lg flex items-center gap-3 text-sm text-amber-900">
+                      <span className="text-xl">⚖️</span>
+                      <div>
+                        <p className="font-semibold text-amber-950">
+                          Equivalência de Estoque:
+                        </p>
+                        <p className="text-amber-800 text-xs mt-0.5">
+                          <strong>{stock} kg</strong> equivalem a aproximadamente{" "}
+                          <strong className="text-amber-950 underline">{units} unidades</strong> de {grams}g
+                          {remGrams > 0 ? ` (e sobram ${remGrams}g)` : ""}.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          )}
         </section>
 
         {/* Umbanda-specific fields */}
