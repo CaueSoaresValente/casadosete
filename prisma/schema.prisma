@@ -289,6 +289,12 @@ enum PaymentMethod {
   BOLETO
 }
 
+enum OrderSource {
+  WEBSITE    // pedido feito pelo checkout do site (padrão)
+  WHATSAPP   // pedido iniciado pelo botão WhatsApp no checkout
+  IN_PERSON  // pedido criado manualmente pelo admin (presencial)
+}
+
 model Order {
   id              String        @id @default(cuid())
   orderNumber     String        @unique @map("order_number")
@@ -318,6 +324,7 @@ model Order {
   couponCode      String?       @map("coupon_code")
 
   status          OrderStatus   @default(PENDING_PAYMENT)
+  source          OrderSource   @default(WEBSITE) @map("source")
 
   user            User?         @relation(fields: [userId], references: [id])
   address         Address?      @relation(fields: [addressId], references: [id])

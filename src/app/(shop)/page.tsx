@@ -4,6 +4,7 @@ import { NewsletterForm } from "@/components/shop/NewsletterForm";
 import { FeaturedCarousel } from "@/components/shop/FeaturedCarousel";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
+export const revalidate = 60;
 
 const categoryGradients = [
   "from-amber-500 to-orange-600",
@@ -258,7 +259,7 @@ export default async function HomePage() {
                 <div className="text-3xl font-bold text-gold-400 mb-1" style={{ fontFamily: "var(--font-heading)" }}>
                   12x
                 </div>
-                <p className="text-sm text-night-400">Sem juros no cartão</p>
+                <p className="text-sm text-night-400">Ate 12x no cartão</p>
               </div>
             </div>
           </div>

@@ -34,6 +34,7 @@ export async function GET(
     shippingCost: order.shippingCost.toString(),
     discount: order.discount.toString(),
     total: order.total.toString(),
+    source: order.source,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
     items: order.items.map((item) => ({
@@ -67,7 +68,7 @@ export async function PATCH(
 
     const order = await prisma.order.findUnique({
       where: { id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, source: true },
     });
 
     if (!order) {
@@ -101,16 +102,65 @@ export async function PATCH(
         });
       }
 
-      // If cancelled, restore stock
-      if (status === "CANCELLED" && order.status !== "CANCELLED") {
-        const items = await tx.orderItem.findMany({
-          where: { orderId: id },
-        });
+      const items = await tx.orderItem.findMany({
+        where: { orderId: id },
+      });
 
+      // WHATSAPP orders: decrement stock only when payment is confirmed (Option A)
+      if (
+        status === "PAYMENT_CONFIRMED" &&
+        order.status !== "PAYMENT_CONFIRMED" &&
+        order.source === "WHATSAPP"
+      ) {
+        for (const item of items) {
+          if (item.variantId) {
+            const updated = await tx.productVariant.update({
+              where: { id: item.variantId },
+              data: { stock: { decrement: item.quantity } },
+              select: { stock: true, name: true },
+            });
+
+            if (updated.stock < 0) {
+              throw new Error(
+                `Estoque insuficiente para "${item.productName}" (${updated.name}) ao confirmar pagamento.`
+              );
+            }
+          } else {
+            const updated = await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+              select: { stock: true, name: true },
+            });
+
+            if (updated.stock < 0) {
+              throw new Error(
+                `Estoque insuficiente para "${item.productName}" ao confirmar pagamento.`
+              );
+            }
+          }
+        }
+      }
+
+      // If cancelled, restore stock for orders that already had stock decremented
+      // (WEBSITE orders: always decremented; IN_PERSON: always decremented;
+      //  WHATSAPP: only if was already PAYMENT_CONFIRMED)
+      const wasStockDecremented =
+        order.source !== "WHATSAPP" ||
+        order.status === "PAYMENT_CONFIRMED" ||
+        order.status === "PROCESSING" ||
+        order.status === "SHIPPED" ||
+        order.status === "DELIVERED";
+
+      if (status === "CANCELLED" && order.status !== "CANCELLED" && wasStockDecremented) {
         for (const item of items) {
           if (item.variantId) {
             await tx.productVariant.update({
               where: { id: item.variantId },
+              data: { stock: { increment: item.quantity } },
+            });
+          } else {
+            await tx.product.update({
+              where: { id: item.productId },
               data: { stock: { increment: item.quantity } },
             });
           }
@@ -127,9 +177,11 @@ export async function PATCH(
     });
   } catch (error) {
     console.error("Order update error:", error);
+    const message = error instanceof Error ? error.message : "Erro ao atualizar pedido";
     return NextResponse.json(
-      { error: "Erro ao atualizar pedido" },
+      { error: message },
       { status: 500 }
     );
   }
 }
+

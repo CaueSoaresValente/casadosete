@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") || "20");
   const search = searchParams.get("search") || "";
   const status = searchParams.get("status") || "";
+  const origin = searchParams.get("origin") || ""; // WEBSITE | WHATSAPP | IN_PERSON
 
   const where: Record<string, unknown> = {};
 
@@ -27,11 +28,13 @@ export async function GET(request: Request) {
   }
 
   if (status) {
-    // Admin chose a specific status filter
     where.status = status;
-  } else {
-    // By default, hide orders that haven't been paid yet
-    where.status = { notIn: ["PENDING_PAYMENT"] };
+  }
+  // Note: no default filter hiding PENDING_PAYMENT — WhatsApp orders start with that status
+  // and must appear in the admin list
+
+  if (origin) {
+    where.source = origin;
   }
 
   const [orders, total] = await Promise.all([
@@ -44,6 +47,7 @@ export async function GET(request: Request) {
         customerEmail: true,
         customerPhone: true,
         status: true,
+        source: true,
         paymentMethod: true,
         paymentStatus: true,
         subtotal: true,
@@ -76,3 +80,4 @@ export async function GET(request: Request) {
     totalPages: Math.ceil(total / limit),
   });
 }
+

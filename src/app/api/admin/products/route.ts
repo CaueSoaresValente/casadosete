@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       include: {
         images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 1 },
         categories: { include: { category: { select: { id: true, name: true } } } },
-        variants: { select: { id: true, stock: true, price: true } },
+        variants: { select: { id: true, name: true, stock: true, price: true, isActive: true } },
       },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,

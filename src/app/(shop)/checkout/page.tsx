@@ -34,6 +34,7 @@ export default function CheckoutPage() {
 
   const [step, setStep] = useState(1); // 1: info, 2: endereço
   const [validating, setValidating] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const validated = useRef(false);
 
@@ -184,28 +185,72 @@ export default function CheckoutPage() {
     return true;
   };
 
-  const handleWhatsAppCheckout = () => {
+  const handleWhatsAppCheckout = async () => {
     if (!validateStep2()) return;
+    setSubmitting(true);
 
-    const itemsList = items
-      .map(
-        (item) =>
-          `• ${item.quantity}x ${item.name}${item.variantName ? ` (${item.variantName})` : ""
-          } — ${formatPrice(item.price * item.quantity * 100)}`
-      )
-      .join("\n");
+    try {
+      // Register the order in the database before opening WhatsApp
+      const res = await fetch("/api/checkout/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: name.trim(),
+          customerEmail: email.trim() || null,
+          customerPhone: phone.replace(/\D/g, ""),
+          shippingAddress: {
+            street,
+            number,
+            complement,
+            neighborhood,
+            city,
+            state,
+            zipCode: zipCode.replace(/\D/g, ""),
+          },
+          items: items.map((i) => ({
+            productId: i.productId,
+            variantId: i.variantId,
+            quantity: i.quantity,
+          })),
+        }),
+      });
 
-    const addressText = `${street}, ${number}${complement ? `, ${complement}` : ""
-      } — ${neighborhood}, ${city}/${state} — CEP: ${zipCode}`;
+      const data = await res.json();
 
-    const text = `Olá, Casa do 7! 🌿\n\nGostaria de finalizar minha compra:\n\n*📋 Itens do pedido:*\n${itemsList}\n\n*💰 Subtotal: ${formatPrice(
-      subtotal * 100
-    )}*\n_(Frete a combinar)_\n\n*👤 Dados do cliente:*\nNome: ${name.trim()}\nE-mail: ${email.trim()}\nTelefone: ${phone}\n\n*📍 Endereço de entrega:*\n${addressText}\n\nComo posso prosseguir com o pagamento e envio? 🙏`;
+      if (!res.ok) {
+        toast.error(data.error || "Erro ao registrar pedido. Tente novamente.");
+        setSubmitting(false);
+        return;
+      }
 
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      const orderNumber: string = data.orderNumber;
 
-    toast.success("Redirecionando para o WhatsApp...");
+      // Build the WhatsApp message with the order number
+      const itemsList = items
+        .map(
+          (item) =>
+            `• ${item.quantity}x ${item.name}${item.variantName ? ` (${item.variantName})` : ""
+            } — ${formatPrice(item.price * item.quantity * 100)}`
+        )
+        .join("\n");
+
+      const addressText = `${street}, ${number}${complement ? `, ${complement}` : ""
+        } — ${neighborhood}, ${city}/${state} — CEP: ${zipCode}`;
+
+      const text = `Olá, Casa do 7! 🌿\n\nGostaria de finalizar minha compra:\n\n*🔖 Número do pedido: ${orderNumber}*\n\n*📋 Itens do pedido:*\n${itemsList}\n\n*💰 Subtotal: ${formatPrice(
+        subtotal * 100
+      )}*\n_(Frete a combinar)_\n\n*👤 Dados do cliente:*\nNome: ${name.trim()}\nE-mail: ${email.trim()}\nTelefone: ${phone}\n\n*📍 Endereço de entrega:*\n${addressText}\n\nComo posso prosseguir com o pagamento e envio? 🙏`;
+
+      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+
+      clearCart();
+      toast.success(`Pedido ${orderNumber} registrado! Redirecionando para o WhatsApp...`);
+    } catch {
+      toast.error("Erro de conexão. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Show loading while validating cart
@@ -505,16 +550,27 @@ export default function CheckoutPage() {
                 <button
                   onClick={() => setStep(1)}
                   className="px-4 py-2.5 text-sm text-night-600 hover:text-night-800 transition-colors"
+                  disabled={submitting}
                 >
                   ← Voltar
                 </button>
                 <button
                   onClick={handleWhatsAppCheckout}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg"
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed disabled:scale-100"
                   style={{ backgroundColor: "#25D366" }}
                 >
-                  <WhatsAppIcon className="w-5 h-5" />
-                  Enviar pedido pelo WhatsApp
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Registrando pedido...
+                    </>
+                  ) : (
+                    <>
+                      <WhatsAppIcon className="w-5 h-5" />
+                      Enviar pedido pelo WhatsApp
+                    </>
+                  )}
                 </button>
               </div>
             </div>
