@@ -15,20 +15,48 @@ export async function GET(
   }
 
   const { id } = await params;
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      categories: { include: { category: true } },
-      variants: { orderBy: { name: "asc" } },
-      images: { orderBy: { sortOrder: "asc" } },
-    },
-  });
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        categories: { include: { category: true } },
+        variants: { orderBy: { name: "asc" } },
+        images: { orderBy: { sortOrder: "asc" } },
+      },
+    });
 
-  if (!product) {
-    return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
+    if (!product) {
+      return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
+    }
+
+    return NextResponse.json(product);
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : "";
+    if (errMsg.includes("sells_by_unit") || errMsg.includes("does not exist")) {
+      const { ensureDatabaseColumns } = await import("@/lib/db-migration");
+      await ensureDatabaseColumns();
+      try {
+        const product = await prisma.product.findUnique({
+          where: { id },
+          include: {
+            categories: { include: { category: true } },
+            variants: { orderBy: { name: "asc" } },
+            images: { orderBy: { sortOrder: "asc" } },
+          },
+        });
+        if (!product) {
+          return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
+        }
+        return NextResponse.json(product);
+      } catch (retryErr) {
+        console.error("Retry failed:", retryErr);
+      }
+    }
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Erro ao buscar produto" },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json(product);
 }
 
 // PUT /api/admin/products/[id]

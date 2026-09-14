@@ -173,6 +173,15 @@ export async function POST(request: Request) {
     return NextResponse.json(fullProduct, { status: 201 });
   } catch (error) {
     console.error("Error creating product:", error);
+    const errMsg = error instanceof Error ? error.message : "";
+    if (errMsg.includes("sells_by_unit") || errMsg.includes("does not exist")) {
+      const { ensureDatabaseColumns } = await import("@/lib/db-migration");
+      await ensureDatabaseColumns();
+      return NextResponse.json(
+        { error: "As novas colunas do banco de dados foram atualizadas agora. Por favor, clique em salvar novamente!" },
+        { status: 500 }
+      );
+    }
     const message = error instanceof Error ? error.message : "Erro ao cadastrar produto";
     return NextResponse.json({ error: message }, { status: 500 });
   }
