@@ -121,7 +121,8 @@ export default function AdminCategoriesPage() {
       ...form,
       parentId: form.parentId || null,
       description: form.description || null,
-      imageUrl: null,
+      // imageUrl não é gerenciado por este formulário; omitido para não
+      // sobrescrever o valor salvo no banco.
     };
 
     try {

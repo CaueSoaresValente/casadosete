@@ -159,15 +159,27 @@ export function FeaturedCarousel({ products }: { products: FeaturedProduct[] }) 
               >
                 {/* Image area */}
                 <div className={`relative aspect-square bg-cream-50 overflow-hidden ${isOutOfStock ? 'grayscale opacity-60' : ''}`}>
-                  {product.images[0] ? (
-                    <img
-                      src={product.images[0].url}
-                      alt={product.images[0].altText || product.name}
-                      className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
-                    />
+                  {product.images[0]?.url ? (
+                    <>
+                      <img
+                        src={product.images[0].url}
+                        alt={product.images[0].altText || product.name}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          const fallback = e.currentTarget.parentElement?.querySelector(".img-fallback");
+                          if (fallback) fallback.classList.remove("hidden");
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
+                      />
+                      <div className="img-fallback hidden w-full h-full flex flex-col items-center justify-center text-night-300">
+                        <Package className="w-12 h-12 mb-1 opacity-60" />
+                        <span className="text-[10px] uppercase tracking-wider text-night-400 font-medium">Sem foto</span>
+                      </div>
+                    </>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-night-300">
-                      <Package className="w-12 h-12" />
+                    <div className="w-full h-full flex flex-col items-center justify-center text-night-300">
+                      <Package className="w-12 h-12 mb-1 opacity-60" />
+                      <span className="text-[10px] uppercase tracking-wider text-night-400 font-medium">Sem foto</span>
                     </div>
                   )}
 

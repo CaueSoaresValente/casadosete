@@ -68,13 +68,20 @@ export async function PUT(
       return NextResponse.json({ error: "Categoria não pode ser pai de si mesma" }, { status: 400 });
     }
 
+    // Se imageUrl não veio no payload (undefined), preservar o valor atual no banco
+    let resolvedImageUrl: string | null | undefined = imageUrl;
+    if (resolvedImageUrl === undefined) {
+      const current = await prisma.category.findUnique({ where: { id }, select: { imageUrl: true } });
+      resolvedImageUrl = current?.imageUrl ?? null;
+    }
+
     const category = await prisma.category.update({
       where: { id },
       data: {
         name,
         slug,
         description,
-        imageUrl: imageUrl || null,
+        imageUrl: resolvedImageUrl ?? null,
         parentId: parentId || null,
         sortOrder,
         isActive,

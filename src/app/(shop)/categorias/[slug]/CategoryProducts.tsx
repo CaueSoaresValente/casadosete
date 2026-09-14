@@ -167,15 +167,27 @@ export default function CategoryProducts({ category }: { category: CategoryInfo 
                 className="group bg-white rounded-xl border border-border-light overflow-hidden hover:shadow-lg hover:border-gold-200 transition-all duration-300"
               >
                 <div className="relative aspect-square bg-cream-100 overflow-hidden">
-                  {product.images[0] ? (
-                    <img
-                      src={product.images[0].url}
-                      alt={product.images[0].altText || product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                  {product.images[0]?.url ? (
+                    <>
+                      <img
+                        src={product.images[0].url}
+                        alt={product.images[0].altText || product.name}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          const fallback = e.currentTarget.parentElement?.querySelector(".img-fallback");
+                          if (fallback) fallback.classList.remove("hidden");
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="img-fallback hidden w-full h-full flex flex-col items-center justify-center bg-cream-50 text-night-300">
+                        <Package className="w-10 h-10 mb-1 opacity-60" />
+                        <span className="text-[10px] uppercase tracking-wider text-night-400 font-medium">Sem foto</span>
+                      </div>
+                    </>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-10 h-10 text-night-200" />
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-cream-50 text-night-300">
+                      <Package className="w-10 h-10 mb-1 opacity-60" />
+                      <span className="text-[10px] uppercase tracking-wider text-night-400 font-medium">Sem foto</span>
                     </div>
                   )}
                   {hasDiscount && (

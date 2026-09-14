@@ -133,7 +133,7 @@ export async function POST(request: Request) {
             productId: p.id,
             sku: v.sku,
             name: v.name,
-            attributes: v.attributes,
+            attributes: v.attributes as Prisma.InputJsonValue,
             price: v.price ? new Prisma.Decimal(v.price) : null,
             stock: v.stock,
             weight: v.weight ? new Prisma.Decimal(v.weight) : null,
@@ -173,6 +173,7 @@ export async function POST(request: Request) {
     return NextResponse.json(fullProduct, { status: 201 });
   } catch (error) {
     console.error("Error creating product:", error);
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Erro ao cadastrar produto";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

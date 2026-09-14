@@ -111,7 +111,7 @@ export async function PUT(
             productId: id,
             sku: v.sku,
             name: v.name,
-            attributes: v.attributes,
+            attributes: v.attributes as Prisma.InputJsonValue,
             price: v.price ? new Prisma.Decimal(v.price) : null,
             stock: v.stock,
             weight: v.weight ? new Prisma.Decimal(v.weight) : null,
@@ -151,7 +151,8 @@ export async function PUT(
     return NextResponse.json(fullProduct);
   } catch (error) {
     console.error("Error updating product:", error);
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Erro ao atualizar produto";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

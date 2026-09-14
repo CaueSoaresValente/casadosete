@@ -262,12 +262,16 @@ export default function ProductsPage() {
 }
 
 function ProductCard({ product }: { product: Product }) {
+  const [imgError, setImgError] = useState(false);
   const price = parseFloat(product.basePrice);
   const comparePrice = product.compareAtPrice ? parseFloat(product.compareAtPrice) : null;
   const hasDiscount = comparePrice && comparePrice > price;
   const discountPercent = hasDiscount
     ? Math.round(((comparePrice - price) / comparePrice) * 100)
     : 0;
+
+  const firstImageUrl = product.images?.[0]?.url;
+  const hasValidImage = firstImageUrl && !imgError;
 
   return (
     <Link
@@ -276,15 +280,17 @@ function ProductCard({ product }: { product: Product }) {
     >
       {/* Image */}
       <div className="relative aspect-square bg-cream-100 overflow-hidden">
-        {product.images[0] ? (
+        {hasValidImage ? (
           <img
-            src={product.images[0].url}
-            alt={product.images[0].altText || product.name}
+            src={firstImageUrl}
+            alt={product.images[0]?.altText || product.name}
+            onError={() => setImgError(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Package className="w-10 h-10 text-night-200" />
+          <div className="w-full h-full flex flex-col items-center justify-center bg-cream-50 text-night-300">
+            <Package className="w-10 h-10 mb-1 opacity-60" />
+            <span className="text-[10px] uppercase tracking-wider text-night-400 font-medium">Sem foto</span>
           </div>
         )}
         {hasDiscount && (

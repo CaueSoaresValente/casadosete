@@ -66,21 +66,21 @@ export default function SobrePage() {
           <p>
             Tem alguma dúvida ou precisa de ajuda para escolher um produto?
             Fale com a gente pelo WhatsApp{" "}
-            
+            <a
               href="https://wa.me/5511976672291"
               className="text-gold-600 hover:underline"
             >
               (11) 97667-2291
             </a>
             , pelo e-mail{" "}
-            
+            <a
               href="mailto:casadosete77@gmail.com"
               className="text-gold-600 hover:underline"
             >
               casadosete77@gmail.com
             </a>{" "}
             ou siga a gente no Instagram{" "}
-            
+            <a
               href="https://instagram.com/casa7.oficial_"
               target="_blank"
               rel="noopener noreferrer"
