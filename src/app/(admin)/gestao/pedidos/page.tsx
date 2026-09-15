@@ -640,9 +640,26 @@ export default function AdminPedidosPage() {
 
                 {/* Items */}
                 <div>
-                  <h3 className="text-sm font-semibold text-night-800 mb-2">
-                    Itens
-                  </h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-night-800">
+                      Itens
+                    </h3>
+                    {((orderDetail as { items?: Array<{ isBackorder?: boolean }> }).items || []).some((i) => i.isBackorder) && (
+                      <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                        Contém item por encomenda
+                      </span>
+                    )}
+                  </div>
+
+                  {((orderDetail as { items?: Array<{ isBackorder?: boolean }> }).items || []).some((i) => i.isBackorder) && (
+                    <div className="mb-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
+                      <span className="shrink-0 text-sm leading-none">⚠️</span>
+                      <span>
+                        Este pedido possui item(ns) comprado(s) <strong>por encomenda</strong> (estoque zerado). Confirme disponibilidade e prazo de reposição com o cliente via WhatsApp.
+                      </span>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     {((orderDetail as { items?: Array<{
                       id: string;
@@ -651,15 +668,23 @@ export default function AdminPedidosPage() {
                       quantity: number;
                       unitPrice: string;
                       totalPrice: string;
+                      isBackorder?: boolean;
                     }> }).items || []).map((item) => (
                       <div
                         key={item.id}
-                        className="flex justify-between text-sm"
+                        className="flex justify-between text-sm py-1 border-b border-night-50 last:border-0"
                       >
                         <div>
-                          <span className="text-night-800">
-                            {item.productName}
-                          </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-night-800 font-medium">
+                              {item.productName}
+                            </span>
+                            {item.isBackorder && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                                Por encomenda
+                              </span>
+                            )}
+                          </div>
                           {item.variantName && (
                             <span className="text-night-400 text-xs block">
                               {item.variantName}

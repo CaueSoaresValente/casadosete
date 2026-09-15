@@ -114,28 +114,58 @@ export async function PATCH(
       ) {
         for (const item of items) {
           if (item.variantId) {
-            const updated = await tx.productVariant.update({
+            const variant = await tx.productVariant.findUnique({
               where: { id: item.variantId },
-              data: { stock: { decrement: item.quantity } },
               select: { stock: true, name: true },
             });
+            if (!variant) continue;
 
-            if (updated.stock < 0) {
-              throw new Error(
-                `Estoque insuficiente para "${item.productName}" (${updated.name}) ao confirmar pagamento.`
-              );
+            if (item.isBackorder) {
+              if (variant.stock > 0) {
+                await tx.productVariant.update({
+                  where: { id: item.variantId },
+                  data: { stock: { decrement: Math.min(item.quantity, variant.stock) } },
+                });
+              }
+            } else {
+              const updated = await tx.productVariant.update({
+                where: { id: item.variantId },
+                data: { stock: { decrement: item.quantity } },
+                select: { stock: true, name: true },
+              });
+
+              if (updated.stock < 0) {
+                throw new Error(
+                  `Estoque insuficiente para "${item.productName}" (${updated.name}) ao confirmar pagamento.`
+                );
+              }
             }
           } else {
-            const updated = await tx.product.update({
+            const prod = await tx.product.findUnique({
               where: { id: item.productId },
-              data: { stock: { decrement: item.quantity } },
               select: { stock: true, name: true },
             });
+            if (!prod) continue;
 
-            if (updated.stock < 0) {
-              throw new Error(
-                `Estoque insuficiente para "${item.productName}" ao confirmar pagamento.`
-              );
+            if (item.isBackorder) {
+              if (prod.stock > 0) {
+                await tx.product.update({
+                  where: { id: item.productId },
+                  data: { stock: { decrement: Math.min(item.quantity, prod.stock) } },
+                });
+              }
+            } else {
+              const updated = await tx.product.update({
+                where: { id: item.productId },
+                data: { stock: { decrement: item.quantity } },
+                select: { stock: true, name: true },
+              });
+
+              if (updated.stock < 0) {
+                throw new Error(
+                  `Estoque insuficiente para "${item.productName}" ao confirmar pagamento.`
+                );
+              }
             }
           }
         }

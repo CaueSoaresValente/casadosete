@@ -19,6 +19,7 @@ export type CartItem = {
   imageUrl: string | null;
   quantity: number;
   stock: number;
+  isBackorder: boolean; // true when item was out-of-stock at time of adding
 };
 
 type CartContextType = {
@@ -76,7 +77,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback(
     (newItem: Omit<CartItem, "quantity"> & { quantity?: number }) => {
-      if (newItem.stock <= 0) return; // Block out-of-stock items
+      const isBackorder = newItem.stock <= 0;
+      // For backorder items use a high sentinel stock so quantity arithmetic works
+      const effectiveStock = isBackorder ? 99 : newItem.stock;
 
       setItems((prev) => {
         const existingIndex = prev.findIndex(
@@ -90,9 +93,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           const existing = updated[existingIndex];
           const newQty = Math.min(
             existing.quantity + (newItem.quantity || 1),
-            newItem.stock
+            effectiveStock
           );
-          updated[existingIndex] = { ...existing, quantity: newQty };
+          updated[existingIndex] = { ...existing, quantity: newQty, isBackorder };
           return updated;
         }
 
@@ -100,7 +103,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
           ...prev,
           {
             ...newItem,
-            quantity: Math.min(newItem.quantity || 1, newItem.stock),
+            isBackorder,
+            quantity: Math.min(newItem.quantity || 1, effectiveStock),
           },
         ];
       });
@@ -129,7 +133,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setItems((prev) =>
         prev.map((i) =>
           i.productId === productId && i.variantId === variantId
-            ? { ...i, quantity: Math.min(quantity, i.stock) }
+            ? { ...i, quantity: Math.min(quantity, i.isBackorder || i.stock <= 0 ? 99 : i.stock) }
             : i
         )
       );

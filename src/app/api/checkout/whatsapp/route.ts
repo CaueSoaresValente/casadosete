@@ -7,6 +7,7 @@ const whatsappItemSchema = z.object({
   productId: z.string(),
   variantId: z.string().nullable(),
   quantity: z.number().int().positive(),
+  isBackorder: z.boolean().optional().default(false),
 });
 
 const whatsappCheckoutSchema = z.object({
@@ -71,12 +72,13 @@ export async function POST(request: Request) {
         unitPrice: typeof Prisma.Decimal.prototype;
         quantity: number;
         totalPrice: typeof Prisma.Decimal.prototype;
+        isBackorder: boolean;
       }> = [];
 
       for (const item of data.items) {
         const product = await tx.product.findUnique({
           where: { id: item.productId },
-          select: { id: true, name: true, basePrice: true, isActive: true },
+          select: { id: true, name: true, basePrice: true, isActive: true, stock: true },
         });
 
         if (!product) {
@@ -89,11 +91,12 @@ export async function POST(request: Request) {
 
         let price = product.basePrice;
         let variantName: string | null = null;
+        let currentStock = product.stock;
 
         if (item.variantId) {
           const variant = await tx.productVariant.findUnique({
             where: { id: item.variantId },
-            select: { id: true, name: true, price: true, isActive: true },
+            select: { id: true, name: true, price: true, isActive: true, stock: true },
           });
 
           if (!variant) {
@@ -106,7 +109,10 @@ export async function POST(request: Request) {
 
           if (variant.price) price = variant.price;
           variantName = variant.name;
+          currentStock = variant.stock;
         }
+
+        const isBackorder = Boolean(item.isBackorder || currentStock <= 0);
 
         itemDetails.push({
           productId: product.id,
@@ -116,6 +122,7 @@ export async function POST(request: Request) {
           unitPrice: price,
           quantity: item.quantity,
           totalPrice: new Prisma.Decimal(price.toString()).mul(item.quantity),
+          isBackorder,
         });
       }
 
@@ -172,6 +179,7 @@ export async function POST(request: Request) {
               unitPrice: item.unitPrice,
               quantity: item.quantity,
               totalPrice: item.totalPrice,
+              isBackorder: item.isBackorder,
             })),
           },
           statusHistory: {

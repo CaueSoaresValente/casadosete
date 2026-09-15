@@ -112,6 +112,11 @@ export function MiniCart() {
                             {item.variantName}
                           </p>
                         )}
+                        {item.isBackorder && (
+                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            Por encomenda
+                          </span>
+                        )}
                         <p className="text-sm font-semibold text-night-900 mt-1">
                           {formatPrice(item.price * 100)}
                         </p>
@@ -142,7 +147,7 @@ export function MiniCart() {
                                   item.quantity + 1
                                 )
                               }
-                              disabled={item.quantity >= item.stock}
+                              disabled={!item.isBackorder && item.stock > 0 && item.quantity >= item.stock}
                               className="p-1 hover:bg-night-50 transition-colors disabled:opacity-50"
                             >
                               <Plus className="w-3 h-3 text-night-500" />

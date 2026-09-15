@@ -194,8 +194,8 @@ export function FeaturedCarousel({ products }: { products: FeaturedProduct[] }) 
                       </span>
                     )}
                     {isOutOfStock && (
-                      <span className="bg-night-700/90 backdrop-blur-sm text-white text-[0.65rem] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                        Esgotado
+                      <span className="bg-amber-500/90 backdrop-blur-sm text-white text-[0.65rem] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                        Por encomenda
                       </span>
                     )}
                   </div>

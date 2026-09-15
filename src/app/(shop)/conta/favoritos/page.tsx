@@ -70,7 +70,8 @@ export default function FavoritosPage() {
       slug: fav.product.slug,
       price: parseFloat(fav.product.basePrice),
       imageUrl: fav.product.imageUrl,
-      stock: fav.product.totalStock || 99,
+      stock: fav.product.totalStock,
+      isBackorder: fav.product.totalStock === 0,
     });
   };
 
@@ -168,12 +169,11 @@ export default function FavoritosPage() {
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => handleAddToCart(fav)}
-                      disabled={fav.product.totalStock === 0}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-white text-xs font-medium transition-all hover:shadow-gold disabled:opacity-50"
-                      style={{ backgroundColor: "var(--color-gold-500)" }}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-white text-xs font-medium transition-all hover:shadow-gold"
+                      style={{ backgroundColor: fav.product.totalStock === 0 ? "#d97706" : "var(--color-gold-500)" }}
                     >
                       <ShoppingBag className="w-3.5 h-3.5" />
-                      {fav.product.totalStock === 0 ? "Esgotado" : "Adicionar"}
+                      {fav.product.totalStock === 0 ? "Por encomenda" : "Adicionar"}
                     </button>
                     <button
                       onClick={() => removeFavorite(fav.productId)}

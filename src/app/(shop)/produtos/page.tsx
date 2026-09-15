@@ -299,9 +299,9 @@ function ProductCard({ product }: { product: Product }) {
           </span>
         )}
         {!product.inStock && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="bg-white text-night-800 text-xs font-semibold px-3 py-1 rounded-full">
-              Esgotado
+          <div className="absolute top-2 right-2">
+            <span className="bg-amber-500 text-white text-[0.6rem] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+              Por encomenda
             </span>
           </div>
         )}

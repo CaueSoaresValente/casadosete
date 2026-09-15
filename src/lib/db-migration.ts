@@ -12,6 +12,7 @@ export async function ensureDatabaseColumns() {
     `ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "unit_weight_grams" DOUBLE PRECISION;`,
     `ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "price_per_kg" DECIMAL(10, 2);`,
     `ALTER TABLE "products" ALTER COLUMN "stock" TYPE DOUBLE PRECISION USING "stock"::DOUBLE PRECISION;`,
+    `ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "is_backorder" BOOLEAN NOT NULL DEFAULT false;`,
   ];
 
   for (const sql of statements) {

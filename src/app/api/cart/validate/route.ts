@@ -94,14 +94,24 @@ export async function POST(request: Request) {
         variantName = variant.name;
       }
 
-      // Check stock
-      if (currentStock === 0) {
-        warnings.push(`"${product.name}"${variantName ? ` (${variantName})` : ""} está esgotado.`);
+      // Check stock — zero stock = backorder (allowed), not an error
+      const isBackorder = currentStock === 0;
+
+      if (isBackorder) {
+        // Allow the item but flag it as backorder — quantity stays as requested (capped at 99)
+        const adjustedQty = Math.min(item.quantity, 99);
         results.push({
           productId: item.productId,
           variantId: item.variantId,
-          status: "REMOVED" as const,
-          reason: "Produto esgotado",
+          status: "OK" as const,
+          name: product.name,
+          variantName,
+          slug: product.slug,
+          price: currentPrice,
+          quantity: adjustedQty,
+          stock: 0,
+          isBackorder: true,
+          imageUrl: product.images[0]?.url || null,
         });
         continue;
       }
@@ -126,6 +136,7 @@ export async function POST(request: Request) {
         price: currentPrice,
         quantity: adjustedQty,
         stock: currentStock === Infinity ? 999 : currentStock,
+        isBackorder: false,
         imageUrl: product.images[0]?.url || null,
       });
     }

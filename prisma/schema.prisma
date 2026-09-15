@@ -356,6 +356,7 @@ model OrderItem {
   unitPrice   Decimal @db.Decimal(10, 2) @map("unit_price")
   quantity    Int
   totalPrice  Decimal @db.Decimal(10, 2) @map("total_price")
+  isBackorder Boolean @default(false) @map("is_backorder")
 
   order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product        @relation(fields: [productId], references: [id])

@@ -92,10 +92,6 @@ export default function ProductDetail({ product }: { product: Product }) {
   const { addItem } = useCart();
 
   const handleAddToCart = () => {
-    if (!inStock) {
-      toast.warning("Este produto está indisponível no momento.");
-      return;
-    }
     addItem({
       productId: product.id,
       variantId: selectedVariant?.id || null,
@@ -105,7 +101,8 @@ export default function ProductDetail({ product }: { product: Product }) {
       price,
       imageUrl: product.images[0]?.url || null,
       quantity,
-      stock: totalStock || 99,
+      stock: totalStock,
+      isBackorder: !inStock,
     });
   };
 
@@ -149,17 +146,17 @@ export default function ProductDetail({ product }: { product: Product }) {
         <div>
           {/* Main image */}
           <div
-            className={`relative aspect-square bg-cream-100 rounded-xl overflow-hidden mb-3 cursor-zoom-in group select-none ${!inStock ? 'grayscale opacity-70' : ''}`}
+            className={`relative aspect-square bg-cream-100 rounded-xl overflow-hidden mb-3 cursor-zoom-in group select-none`}
             onMouseEnter={() => setIsZoomed(true)}
             onMouseLeave={() => setIsZoomed(false)}
             onMouseMove={handleMouseMove}
             onClick={() => setIsModalOpen(true)}
           >
             {!inStock && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center">
-                <div className="bg-night-900/80 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-wide">
-                  Indisponível
-                </div>
+              <div className="absolute top-3 left-3 z-20">
+                <span className="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                  Por encomenda
+                </span>
               </div>
             )}
             {product.images.length > 0 ? (
@@ -285,13 +282,13 @@ export default function ProductDetail({ product }: { product: Product }) {
               )}
             </div>
             {!inStock && (
-              <div className="mt-3 bg-ruby-50 border border-ruby-200 rounded-lg p-3">
-                <p className="text-sm text-ruby-700 flex items-center gap-2 font-medium">
+              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-700 flex items-center gap-2 font-medium">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  Ops! Este produto está temporariamente indisponível.
+                  Produto por encomenda
                 </p>
-                <p className="text-xs text-ruby-500 mt-1 ml-6">
-                  Fale conosco pelo WhatsApp para saber quando teremos reposição! 🙏
+                <p className="text-xs text-amber-600 mt-1 ml-6">
+                  Estoque zerado no momento — você pode adicionar ao carrinho e enviar o pedido pelo WhatsApp. Confirmaremos a disponibilidade diretamente com você! 🙏
                 </p>
               </div>
             )}
@@ -311,17 +308,18 @@ export default function ProductDetail({ product }: { product: Product }) {
                       setSelectedVariant(v);
                       setQuantity(1);
                     }}
-                    disabled={v.stock === 0}
                     className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                       selectedVariant?.id === v.id
                         ? "border-gold-500 bg-gold-50 text-gold-700"
                         : v.stock === 0
-                          ? "border-night-100 bg-night-50 text-night-300 cursor-not-allowed"
+                          ? "border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400"
                           : "border-night-200 text-night-600 hover:border-gold-300 hover:bg-gold-50"
                     }`}
                   >
                     {v.name}
-                    {v.stock === 0 && " (esgotado)"}
+                    {v.stock === 0 && (
+                      <span className="ml-1 text-[0.65rem] font-semibold text-amber-600">(por encomenda)</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -330,42 +328,34 @@ export default function ProductDetail({ product }: { product: Product }) {
 
           {/* Quantity + Add to cart */}
           <div className="flex items-center gap-3 mb-5">
-            {inStock && (
-              <div className="flex items-center border border-night-200 rounded-lg">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-3 py-2 text-night-500 hover:text-night-700"
-                  disabled={quantity <= 1}
-                >
-                  −
-                </button>
-                <span className="px-3 py-2 text-sm font-medium text-night-800 min-w-[2.5rem] text-center">
-                  {quantity}
-                </span>
-                <button
-                  onClick={() =>
-                    setQuantity(Math.min(totalStock || 99, quantity + 1))
-                  }
-                  className="px-3 py-2 text-night-500 hover:text-night-700"
-                >
-                  +
-                </button>
-              </div>
-            )}
+            <div className="flex items-center border border-night-200 rounded-lg">
+              <button
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="px-3 py-2 text-night-500 hover:text-night-700"
+                disabled={quantity <= 1}
+              >
+                −
+              </button>
+              <span className="px-3 py-2 text-sm font-medium text-night-800 min-w-[2.5rem] text-center">
+                {quantity}
+              </span>
+              <button
+                onClick={() =>
+                  setQuantity(Math.min(inStock ? (totalStock || 99) : 99, quantity + 1))
+                }
+                className="px-3 py-2 text-night-500 hover:text-night-700"
+              >
+                +
+              </button>
+            </div>
 
             <button
-              disabled={!inStock}
               onClick={handleAddToCart}
-              className={`flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-sm transition-all
-                         disabled:cursor-not-allowed ${
-                           inStock
-                             ? 'text-white hover:shadow-gold hover:scale-[1.01] active:scale-[0.99]'
-                             : 'bg-night-200 text-night-500'
-                         }`}
-              style={inStock ? { backgroundColor: "var(--color-gold-500)" } : {}}
+              className={`flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-sm transition-all text-white hover:shadow-gold hover:scale-[1.01] active:scale-[0.99]`}
+              style={{ backgroundColor: inStock ? "var(--color-gold-500)" : "#d97706" }}
             >
               <ShoppingBag className="w-4 h-4" />
-              {inStock ? "Adicionar ao carrinho" : "Produto indisponível"}
+              {inStock ? "Adicionar ao carrinho" : "Pedir por encomenda"}
             </button>
 
             <button className="p-3 rounded-lg border border-night-200 hover:border-ruby-300 hover:bg-ruby-50 transition-colors">

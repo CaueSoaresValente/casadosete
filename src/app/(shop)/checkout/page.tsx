@@ -211,6 +211,7 @@ export default function CheckoutPage() {
             productId: i.productId,
             variantId: i.variantId,
             quantity: i.quantity,
+            isBackorder: i.isBackorder ?? false,
           })),
         }),
       });
@@ -230,7 +231,7 @@ export default function CheckoutPage() {
         .map(
           (item) =>
             `• ${item.quantity}x ${item.name}${item.variantName ? ` (${item.variantName})` : ""
-            } — ${formatPrice(item.price * item.quantity * 100)}`
+            }${item.isBackorder ? " [Por encomenda]" : ""} — ${formatPrice(item.price * item.quantity * 100)}`
         )
         .join("\n");
 
@@ -612,6 +613,11 @@ export default function CheckoutPage() {
                     </p>
                     {item.variantName && (
                       <p className="text-xs text-night-400">{item.variantName}</p>
+                    )}
+                    {item.isBackorder && (
+                      <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                        Por encomenda
+                      </span>
                     )}
                     <p className="text-xs text-night-500">
                       {item.quantity}x {formatPrice(item.price * 100)}

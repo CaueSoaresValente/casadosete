@@ -34,6 +34,10 @@ ALTER TABLE "products"
 ALTER TABLE "products" 
   ALTER COLUMN "stock" TYPE DOUBLE PRECISION USING "stock"::DOUBLE PRECISION;
 
+-- 5. Adição da coluna 'is_backorder' na tabela order_items (pedidos com itens por encomenda)
+ALTER TABLE "order_items" 
+  ADD COLUMN IF NOT EXISTS "is_backorder" BOOLEAN NOT NULL DEFAULT false;
+
 -- Verificação das alterações aplicadas
 -- SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'products' AND column_name IN ('stock', 'sells_by_unit', 'unit_weight_grams', 'price_per_kg');
 -- SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'source';
