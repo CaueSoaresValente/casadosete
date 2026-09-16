@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession, signOut } from "next-auth/react";
 import {
   ShoppingBag,
   Heart,
@@ -11,6 +12,9 @@ import {
   X,
   Phone,
   Search,
+  LogOut,
+  ShieldCheck,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SearchBar } from "@/components/shop/SearchBar";
@@ -19,10 +23,23 @@ import { useCart } from "@/contexts/CartContext";
 type NavCategory = { id: string; name: string; slug: string };
 
 export function Header() {
+  const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [categories, setCategories] = useState<NavCategory[]>([]);
   const { totalItems, setIsOpen } = useCart();
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetch("/api/catalog/categories")
@@ -107,14 +124,79 @@ export function Header() {
               <Heart className="w-5 h-5 text-night-600" />
             </Link>
 
-            {/* Account (hidden on small mobile, accessible in menu) */}
-            <Link
-              href="/login"
-              className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-lg hover:bg-surface-hover transition-colors"
-              aria-label="Minha conta"
-            >
-              <User className="w-5 h-5 text-night-600" />
-            </Link>
+            {/* Account dropdown / link */}
+            {session?.user ? (
+              <div className="relative hidden sm:block" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="inline-flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg hover:bg-surface-hover transition-colors text-xs font-semibold text-night-800"
+                  aria-label="Minha conta"
+                >
+                  <div className="w-6 h-6 rounded-full bg-gold-100 text-gold-700 flex items-center justify-center font-bold text-xs">
+                    {session.user.name?.charAt(0).toUpperCase() || <User className="w-3.5 h-3.5" />}
+                  </div>
+                  <span className="hidden md:inline max-w-[100px] truncate">
+                    {session.user.name?.split(" ")[0]}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-night-400" />
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-border py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                    <div className="px-3 py-2 border-b border-border-light">
+                      <p className="text-xs font-semibold text-night-900 truncate">
+                        {session.user.name}
+                      </p>
+                      <p className="text-[0.7rem] text-night-500 truncate">
+                        {session.user.email}
+                      </p>
+                    </div>
+
+                    <Link
+                      href="/conta/favoritos"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 text-xs text-night-700 hover:bg-gold-50 hover:text-gold-700 transition-colors"
+                    >
+                      <Heart className="w-4 h-4 text-ruby-500" />
+                      Meus Favoritos
+                    </Link>
+
+                    {(session.user.role === "ADMIN" || session.user.role === "STAFF") && (
+                      <Link
+                        href="/gestao"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs text-night-700 hover:bg-night-100 transition-colors"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-gold-600" />
+                        Painel de Gestão
+                      </Link>
+                    )}
+
+                    <div className="border-t border-border-light my-1" />
+
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        signOut({ callbackUrl: "/" });
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-ruby-600 hover:bg-ruby-50 transition-colors text-left"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sair da conta
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="hidden sm:inline-flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg hover:bg-surface-hover transition-colors text-xs font-semibold text-night-700"
+                aria-label="Entrar na minha conta"
+              >
+                <User className="w-5 h-5 text-night-600" />
+                <span className="hidden md:inline">Entrar</span>
+              </Link>
+            )}
 
             {/* Cart */}
             <button
@@ -208,23 +290,84 @@ export function Header() {
           >
             <nav className="max-w-7xl mx-auto px-4 py-4 space-y-4">
               {/* Quick links for mobile */}
-              <div className="grid grid-cols-2 gap-2 pb-3 border-b border-border-light">
-                <Link
-                  href="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 p-2.5 rounded-lg bg-cream-100 text-night-800 text-xs font-semibold hover:bg-gold-50 hover:text-gold-700 transition-colors"
-                >
-                  <User className="w-4 h-4 text-gold-600" />
-                  Minha Conta
-                </Link>
-                <Link
-                  href="/conta/favoritos"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 p-2.5 rounded-lg bg-cream-100 text-night-800 text-xs font-semibold hover:bg-gold-50 hover:text-gold-700 transition-colors"
-                >
-                  <Heart className="w-4 h-4 text-ruby-600" />
-                  Favoritos
-                </Link>
+              <div className="pb-3 border-b border-border-light space-y-2">
+                {session?.user ? (
+                  <>
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-gold-50 border border-gold-100">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-full bg-gold-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                          {session.user.name?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-night-900 truncate">
+                            {session.user.name}
+                          </p>
+                          <p className="text-[0.65rem] text-night-500 truncate">
+                            {session.user.email}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          signOut({ callbackUrl: "/" });
+                        }}
+                        className="text-[0.7rem] font-semibold text-ruby-600 hover:text-ruby-700 px-2 py-1 rounded bg-white border border-ruby-200 shrink-0"
+                      >
+                        Sair
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link
+                        href="/conta/favoritos"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 p-2.5 rounded-lg bg-cream-100 text-night-800 text-xs font-semibold hover:bg-gold-50 hover:text-gold-700 transition-colors"
+                      >
+                        <Heart className="w-4 h-4 text-ruby-600" />
+                        Favoritos
+                      </Link>
+                      {(session.user.role === "ADMIN" || session.user.role === "STAFF") ? (
+                        <Link
+                          href="/gestao"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-2 p-2.5 rounded-lg bg-night-900 text-cream-200 text-xs font-semibold hover:bg-night-800 transition-colors"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-gold-400" />
+                          Gestão
+                        </Link>
+                      ) : (
+                        <Link
+                          href="/produtos"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-2 p-2.5 rounded-lg bg-cream-100 text-night-800 text-xs font-semibold hover:bg-gold-50 hover:text-gold-700 transition-colors"
+                        >
+                          <ShoppingBag className="w-4 h-4 text-gold-600" />
+                          Loja
+                        </Link>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2.5 rounded-lg bg-cream-100 text-night-800 text-xs font-semibold hover:bg-gold-50 hover:text-gold-700 transition-colors"
+                    >
+                      <User className="w-4 h-4 text-gold-600" />
+                      Entrar / Conta
+                    </Link>
+                    <Link
+                      href="/conta/favoritos"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2.5 rounded-lg bg-cream-100 text-night-800 text-xs font-semibold hover:bg-gold-50 hover:text-gold-700 transition-colors"
+                    >
+                      <Heart className="w-4 h-4 text-ruby-600" />
+                      Favoritos
+                    </Link>
+                  </div>
+                )}
               </div>
 
               {/* Categories list */}

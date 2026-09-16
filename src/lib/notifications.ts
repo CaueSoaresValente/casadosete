@@ -56,7 +56,7 @@ export async function sendLowStockEmail(
             Acesse o painel administrativo para repor o estoque.
           </p>
           <div style="text-align: center; margin-top: 12px;">
-            <a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/gestao/produtos"
+            <a href="${(process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes("localhost")) ? process.env.NEXTAUTH_URL : "https://casadosete.vercel.app"}/gestao/produtos"
                style="display: inline-block; padding: 10px 24px; background: #c8912a; color: white; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px;">
               Ir para o Painel →
             </a>
@@ -91,7 +91,7 @@ export async function sendOutOfStockEmail(productName: string) {
             O produto <strong>"${productName}"</strong> acabou de zerar no estoque. Ele será exibido como indisponível na loja.
           </p>
           <div style="text-align: center; margin-top: 12px;">
-            <a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/gestao/produtos"
+            <a href="${(process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes("localhost")) ? process.env.NEXTAUTH_URL : "https://casadosete.vercel.app"}/gestao/produtos"
                style="display: inline-block; padding: 10px 24px; background: #b91c1c; color: white; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px;">
               Repor estoque agora →
             </a>
@@ -122,3 +122,57 @@ export function checkAndNotifyStock(
     sendLowStockEmail(productName, currentStock, stockUnit).catch(() => {});
   }
 }
+
+/**
+ * Send password reset email to a customer
+ */
+export async function sendPasswordResetEmail(
+  toEmail: string,
+  userName: string,
+  resetUrl: string
+) {
+  try {
+    await transporter.sendMail({
+      from: `"Casa do 7" <${process.env.GMAIL_USER}>`,
+      to: toEmail,
+      subject: `Recuperação de Senha — Casa do 7`,
+      html: `
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; background: #faf8f5; border-radius: 16px; border: 1px solid #e8e2d8;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #262626; font-size: 24px; margin: 0; font-weight: 700;">Casa do 7</h1>
+            <p style="color: #b8860b; font-size: 13px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 1px;">Artigos Religiosos</p>
+          </div>
+          <div style="background: #ffffff; border-radius: 12px; padding: 24px; border: 1px solid #efeae1; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <h2 style="color: #262626; font-size: 18px; margin: 0 0 12px;">
+              Olá, ${userName || "cliente"}!
+            </h2>
+            <p style="color: #595959; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
+              Recebemos uma solicitação para redefinir a senha da sua conta na <strong>Casa do 7</strong>. Se você realizou essa solicitação, clique no botão abaixo para criar uma nova senha:
+            </p>
+            <div style="text-align: center; margin: 28px 0;">
+              <a href="${resetUrl}"
+                 style="display: inline-block; padding: 12px 32px; background: #c8912a; color: #ffffff; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 2px 8px rgba(200, 145, 42, 0.3);">
+                Redefinir Minha Senha
+              </a>
+            </div>
+            <p style="color: #8c8c8c; font-size: 12px; line-height: 1.5; margin: 0;">
+              Este link é válido por <strong>1 hora</strong>. Se você não solicitou a redefinição de senha, nenhuma ação é necessária — sua senha atual permanecerá segura.
+            </p>
+          </div>
+          <div style="text-align: center; margin-top: 20px;">
+            <p style="color: #a8a29e; font-size: 11px; margin: 0;">
+              Se o botão acima não funcionar, copie e cole o seguinte link no seu navegador:<br/>
+              <a href="${resetUrl}" style="color: #c8912a; word-break: break-all;">${resetUrl}</a>
+            </p>
+          </div>
+        </div>
+      `,
+    });
+    console.log(`[NOTIFICATION] Password reset email sent to "${toEmail}"`);
+    return true;
+  } catch (error) {
+    console.error("[NOTIFICATION] Failed to send password reset email:", error);
+    return false;
+  }
+}
+

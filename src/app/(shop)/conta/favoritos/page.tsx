@@ -24,6 +24,7 @@ type FavoriteProduct = {
 export default function FavoritosPage() {
   const [favorites, setFavorites] = useState<FavoriteProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUnauthorized, setIsUnauthorized] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const { addItem } = useCart();
 
@@ -37,9 +38,12 @@ export default function FavoritosPage() {
       if (res.ok) {
         const data = await res.json();
         setFavorites(data);
+        setIsUnauthorized(false);
+      } else if (res.status === 401) {
+        setIsUnauthorized(true);
       }
     } catch {
-      // Not logged in or error
+      // Error handling
     } finally {
       setLoading(false);
     }
@@ -79,6 +83,39 @@ export default function FavoritosPage() {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center">
         <Loader2 className="w-8 h-8 text-gold-500 animate-spin mx-auto" />
+      </div>
+    );
+  }
+
+  if (isUnauthorized) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <div className="max-w-md mx-auto bg-surface rounded-2xl border border-border p-8 space-y-4">
+          <div className="w-14 h-14 bg-ruby-50 rounded-full flex items-center justify-center mx-auto">
+            <Heart className="w-7 h-7 text-ruby-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-night-900" style={{ fontFamily: "var(--font-heading)" }}>
+            Acesse seus Favoritos
+          </h1>
+          <p className="text-sm text-night-600">
+            Você precisa estar conectado à sua conta para visualizar e salvar seus produtos favoritos.
+          </p>
+          <div className="pt-2 space-y-2">
+            <Link
+              href="/login?callbackUrl=/conta/favoritos"
+              className="block w-full py-3 px-4 rounded-xl text-white font-medium text-sm transition-opacity shadow-sm hover:opacity-95"
+              style={{ backgroundColor: "var(--color-gold-500)" }}
+            >
+              Fazer Login ou Criar Conta
+            </Link>
+            <Link
+              href="/produtos"
+              className="block w-full py-2.5 px-4 rounded-xl bg-night-100 text-night-800 font-medium text-sm hover:bg-night-200 transition-colors"
+            >
+              Explorar Loja
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

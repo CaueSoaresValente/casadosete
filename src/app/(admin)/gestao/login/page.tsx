@@ -14,7 +14,16 @@ function AdminLoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/gestao";
+  const rawCallbackUrl = searchParams.get("callbackUrl") || "/gestao";
+  const callbackUrl = (() => {
+    try {
+      if (rawCallbackUrl.startsWith("/")) return rawCallbackUrl;
+      const parsed = new URL(rawCallbackUrl);
+      return parsed.pathname + parsed.search + parsed.hash || "/gestao";
+    } catch {
+      return "/gestao";
+    }
+  })();
   const urlError = searchParams.get("error");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,8 +42,16 @@ function AdminLoginForm() {
       if (result?.error) {
         setError("E-mail ou senha inválidos.");
       } else {
-        // Redireciona com segurança mesmo se result.url for nulo/indefinido
-        window.location.href = result?.url || callbackUrl || "/gestao";
+        let targetUrl = callbackUrl || "/gestao";
+        if (result?.url) {
+          try {
+            const parsed = new URL(result.url, window.location.origin);
+            targetUrl = parsed.pathname + parsed.search + parsed.hash || "/gestao";
+          } catch {
+            targetUrl = callbackUrl || "/gestao";
+          }
+        }
+        window.location.href = targetUrl;
       }
     } catch {
       setError("Erro ao fazer login. Tente novamente.");

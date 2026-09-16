@@ -12,6 +12,30 @@ const loginSchema = z.object({
   password: z.string().min(1, "Senha é obrigatória"),
 });
 
+const DEFAULT_SITE_URL = "https://casadosete.vercel.app";
+
+// Normaliza variáveis de ambiente entre Auth.js v5 (AUTH_SECRET/AUTH_URL) e NextAuth v4 (NEXTAUTH_SECRET/NEXTAUTH_URL)
+if (!process.env.AUTH_SECRET && process.env.NEXTAUTH_SECRET) {
+  process.env.AUTH_SECRET = process.env.NEXTAUTH_SECRET;
+}
+if (!process.env.AUTH_TRUST_HOST) {
+  process.env.AUTH_TRUST_HOST = "true";
+}
+
+// Garante que NEXTAUTH_URL e AUTH_URL usem sempre o domínio padrão oficial (https://casadosete.vercel.app)
+const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+if (vercelHost) {
+  process.env.NEXTAUTH_URL = `https://${vercelHost}`;
+  process.env.AUTH_URL = `https://${vercelHost}`;
+} else if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost") || process.env.NEXTAUTH_URL.includes("127.0.0.1")) {
+  process.env.NEXTAUTH_URL = DEFAULT_SITE_URL;
+  process.env.AUTH_URL = DEFAULT_SITE_URL;
+}
+
+const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+const useSecureCookies = isProduction || (process.env.NEXTAUTH_URL?.startsWith("https://") ?? false);
+const cookiePrefix = useSecureCookies ? "__Secure-" : "";
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "casadosete-auth-secret-key-2026-production",
@@ -19,6 +43,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  cookies: {
+    sessionToken: {
+      name: `${cookiePrefix}authjs.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
+    callbackUrl: {
+      name: `${cookiePrefix}authjs.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
+    csrfToken: {
+      name: `${useSecureCookies ? "__Host-" : ""}authjs.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
   },
   pages: {
     signIn: "/login",
@@ -108,6 +161,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.role = (token.role as UserRole) || "CUSTOMER";
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      const siteBaseUrl =
+        process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes("localhost")
+          ? process.env.NEXTAUTH_URL
+          : DEFAULT_SITE_URL;
+
+      if (url.startsWith("/")) {
+        return `${siteBaseUrl}${url}`;
+      }
+      try {
+        const parsed = new URL(url);
+        if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+          return `${siteBaseUrl}${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+        if (parsed.origin === siteBaseUrl || parsed.origin === baseUrl) {
+          return `${siteBaseUrl}${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+      } catch {
+        // fallback
+      }
+      return siteBaseUrl;
     },
   },
 });

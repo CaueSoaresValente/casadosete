@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -57,6 +58,9 @@ type Product = {
 };
 
 export default function ProductDetail({ product }: { product: Product }) {
+  const { data: session } = useSession();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     product.variants.length > 0 ? product.variants[0] : null
   );
@@ -65,6 +69,51 @@ export default function ProductDetail({ product }: { product: Product }) {
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (session?.user) {
+      fetch("/api/favorites")
+        .then((res) => (res.ok ? res.json() : []))
+        .then((favs: Array<{ productId: string }>) => {
+          if (Array.isArray(favs)) {
+            setIsFavorite(favs.some((f) => f.productId === product.id));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [session, product.id]);
+
+  const handleToggleFavorite = async () => {
+    if (!session?.user) {
+      toast.info("Faça login para salvar este produto nos seus favoritos.");
+      return;
+    }
+
+    setFavoriteLoading(true);
+    try {
+      const res = await fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setIsFavorite(data.favorited);
+        if (data.favorited) {
+          toast.success("Produto adicionado aos favoritos!");
+        } else {
+          toast.info("Produto removido dos favoritos.");
+        }
+      } else {
+        toast.error("Não foi possível atualizar seus favoritos.");
+      }
+    } catch {
+      toast.error("Erro de rede ao atualizar favoritos.");
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -358,8 +407,22 @@ export default function ProductDetail({ product }: { product: Product }) {
               {inStock ? "Adicionar ao carrinho" : "Pedir por encomenda"}
             </button>
 
-            <button className="p-3 rounded-lg border border-night-200 hover:border-ruby-300 hover:bg-ruby-50 transition-colors">
-              <Heart className="w-5 h-5 text-night-400 hover:text-ruby-500" />
+            <button
+              onClick={handleToggleFavorite}
+              disabled={favoriteLoading}
+              title={isFavorite ? "Remover dos favoritos" : "Salvar nos favoritos"}
+              aria-label="Favoritar produto"
+              className={`p-3 rounded-lg border transition-all ${
+                isFavorite
+                  ? "border-ruby-400 bg-ruby-50 text-ruby-600 shadow-sm"
+                  : "border-night-200 hover:border-ruby-300 hover:bg-ruby-50 text-night-400 hover:text-ruby-500"
+              }`}
+            >
+              <Heart
+                className={`w-5 h-5 transition-transform active:scale-125 ${
+                  isFavorite ? "fill-ruby-500 text-ruby-500" : ""
+                }`}
+              />
             </button>
           </div>
 
