@@ -176,7 +176,7 @@ export async function POST(request: Request) {
           shippingCost,
           shippingMethod: "Presencial",
           paymentMethod: data.paymentMethod,
-          paymentStatus: data.status === "PAYMENT_CONFIRMED" ? "CONFIRMED" : "PENDING",
+          paymentStatus: data.status === "PAYMENT_CONFIRMED" ? "aprovado" : "a_combinar",
           status: data.status,
           source: "IN_PERSON",
           subtotal,

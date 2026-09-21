@@ -443,7 +443,7 @@ export default function ProductDetail({ product }: { product: Product }) {
             </div>
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-gold-500 shrink-0" />
-              <span className="text-xs text-night-500">Compra segura</span>
+              <span className="text-xs text-night-500">Pedido pelo WhatsApp</span>
             </div>
             <div className="flex items-center gap-2">
               <Star className="w-4 h-4 text-gold-500 shrink-0" />

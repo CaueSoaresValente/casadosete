@@ -14,7 +14,9 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") || "20");
   const search = searchParams.get("search") || "";
   const status = searchParams.get("status") || "";
-  const origin = searchParams.get("origin") || ""; // WEBSITE | WHATSAPP | IN_PERSON
+  const paymentStatus = searchParams.get("paymentStatus") || "";
+  const modality = searchParams.get("modality") || "";
+  const origin = searchParams.get("origin") || ""; // Legacy source filter
 
   const where: Record<string, unknown> = {};
 
@@ -24,16 +26,24 @@ export async function GET(request: Request) {
       { customerName: { contains: search, mode: "insensitive" } },
       { customerEmail: { contains: search, mode: "insensitive" } },
       { customerPhone: { contains: search } },
+      { trackingCode: { contains: search, mode: "insensitive" } },
     ];
   }
 
   if (status) {
     where.status = status;
   }
-  // Note: no default filter hiding PENDING_PAYMENT — WhatsApp orders start with that status
-  // and must appear in the admin list
 
-  if (origin) {
+  if (paymentStatus) {
+    where.paymentStatus = paymentStatus;
+  }
+
+  if (modality) {
+    where.OR = [
+      { modality: modality },
+      { source: modality },
+    ];
+  } else if (origin) {
     where.source = origin;
   }
 
@@ -48,6 +58,12 @@ export async function GET(request: Request) {
         customerPhone: true,
         status: true,
         source: true,
+        modality: true,
+        carrier: true,
+        trackingCode: true,
+        estimatedDeliveryDate: true,
+        internalNotes: true,
+        customerNotes: true,
         paymentMethod: true,
         paymentStatus: true,
         subtotal: true,
@@ -70,6 +86,9 @@ export async function GET(request: Request) {
     shippingCost: o.shippingCost.toString(),
     discount: o.discount.toString(),
     total: o.total.toString(),
+    estimatedDeliveryDate: o.estimatedDeliveryDate
+      ? o.estimatedDeliveryDate.toISOString()
+      : null,
     createdAt: o.createdAt.toISOString(),
   }));
 

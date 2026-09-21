@@ -23,8 +23,8 @@ type Category = {
   parentId: string | null;
   sortOrder: number;
   isActive: boolean;
-  children: Category[];
-  _count: { products: number };
+  children?: Category[];
+  _count?: { products: number };
 };
 
 type FormData = {
@@ -70,10 +70,13 @@ export default function AdminCategoriesPage() {
       const res = await fetch("/api/admin/categories");
       if (res.ok) {
         const data = await res.json();
-        setCategories(data);
+        setCategories(Array.isArray(data) ? data : []);
+      } else {
+        setCategories([]);
       }
     } catch {
       toast.error("Falha ao carregar categorias");
+      setCategories([]);
     } finally {
       setLoading(false);
     }
@@ -204,12 +207,18 @@ export default function AdminCategoriesPage() {
   // Flatten categories for parent select
   const allCategories: { id: string; name: string; depth: number }[] = [];
   const flattenCategories = (cats: Category[], depth = 0) => {
+    if (!Array.isArray(cats)) return;
     for (const cat of cats) {
+      if (!cat) continue;
       allCategories.push({ id: cat.id, name: cat.name, depth });
-      if (cat.children) flattenCategories(cat.children, depth + 1);
+      if (Array.isArray(cat.children) && cat.children.length > 0) {
+        flattenCategories(cat.children, depth + 1);
+      }
     }
   };
-  flattenCategories(categories);
+  if (Array.isArray(categories)) {
+    flattenCategories(categories);
+  }
 
   return (
     <div>
@@ -496,7 +505,7 @@ function CategoryRow({
         </td>
         <td className="px-4 py-3 text-center">
           <span className="text-sm text-night-600">
-            {category._count.products}
+            {category._count?.products ?? 0}
           </span>
         </td>
         <td className="px-4 py-3 text-center">
@@ -536,16 +545,17 @@ function CategoryRow({
           </div>
         </td>
       </tr>
-      {category.children?.map((child) => (
-        <CategoryRow
-          key={child.id}
-          category={child}
-          depth={depth + 1}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onAddChild={onAddChild}
-        />
-      ))}
+      {Array.isArray(category.children) &&
+        category.children.map((child) => (
+          <CategoryRow
+            key={child.id}
+            category={child}
+            depth={depth + 1}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onAddChild={onAddChild}
+          />
+        ))}
     </>
   );
 }

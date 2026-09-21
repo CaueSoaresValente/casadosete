@@ -225,9 +225,7 @@ export function FeaturedCarousel({ products }: { products: FeaturedProduct[] }) 
                         </span>
                       )}
                     </div>
-                    <p className="text-[0.7rem] text-night-500 mt-0.5 font-medium">
-                      até 12x de {formatPrice((price / 12) * 100)}
-                    </p>
+
                   </div>
                 </div>
               </Link>

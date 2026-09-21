@@ -17,6 +17,15 @@ const categoryGradients = [
 
 const categoryIcons = [Flame, Sparkles, Star, Flame, Sparkles, Star];
 
+const categoryDefaultImages: Record<string, string> = {
+  velas: "/assets/imgvelas.jpg",
+  imagens: "/assets/img_estatuas.jpg",
+  roupas: "/assets/img_roupa.jpg",
+  "guias-colares": "/assets/img_guias.jpg",
+  incensos: "/assets/img_incensos.jpg",
+  "ervas-banhos": "/assets/img_ervas.jpg",
+};
+
 export default async function HomePage() {
   // Fetch categories and featured products from DB
   const [categories, featuredProducts] = await Promise.all([
@@ -164,9 +173,9 @@ export default async function HomePage() {
                 href={`/categorias/${cat.slug}`}
                 className="group relative rounded-xl overflow-hidden aspect-[16/10] md:aspect-[2/1] flex items-end shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
               >
-                {cat.imageUrl ? (
+                {cat.imageUrl || categoryDefaultImages[cat.slug] ? (
                   <img
-                    src={cat.imageUrl}
+                    src={cat.imageUrl || categoryDefaultImages[cat.slug]}
                     alt={cat.name}
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
@@ -257,9 +266,9 @@ export default async function HomePage() {
               </div>
               <div className="p-4">
                 <div className="text-3xl font-bold text-gold-400 mb-1" style={{ fontFamily: "var(--font-heading)" }}>
-                  12x
+                  WhatsApp
                 </div>
-                <p className="text-sm text-night-400">Ate 12x no cartão</p>
+                <p className="text-sm text-night-400">Pagamento e frete flexíveis</p>
               </div>
             </div>
           </div>

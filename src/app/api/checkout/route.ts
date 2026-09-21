@@ -238,7 +238,7 @@ export async function POST(request: Request) {
           shippingCost,
           shippingMethod: "PAC",
           paymentMethod: data.paymentMethod,
-          paymentStatus: "PENDING",
+          paymentStatus: "a_combinar",
           status: "PENDING_PAYMENT",
           subtotal,
           discount,

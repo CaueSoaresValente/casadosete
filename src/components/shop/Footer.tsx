@@ -43,10 +43,10 @@ export function Footer() {
             </div>
             <div>
               <p className="text-sm font-semibold text-cream-100">
-                Compra segura
+                Pedido pelo WhatsApp
               </p>
               <p className="text-xs text-night-300">
-                Seus dados protegidos
+                Atendimento direto e humano
               </p>
             </div>
           </div>
@@ -56,10 +56,10 @@ export function Footer() {
             </div>
             <div>
               <p className="text-sm font-semibold text-cream-100">
-                PIX, cartão e boleto
+                Pagamento Flexível
               </p>
               <p className="text-xs text-night-300">
-                Até 12x no cartão
+                Combinado com nossa equipe
               </p>
             </div>
           </div>

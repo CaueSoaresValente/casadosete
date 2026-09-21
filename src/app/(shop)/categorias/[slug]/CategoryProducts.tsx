@@ -213,9 +213,7 @@ export default function CategoryProducts({ category }: { category: CategoryInfo 
                       <span className="text-xs text-night-400 line-through">{formatPrice(comparePrice * 100)}</span>
                     )}
                   </div>
-                  <p className="text-[0.65rem] text-night-400 mt-0.5">
-                    até 12x de {formatPrice((price / 12) * 100)}
-                  </p>
+
                 </div>
               </Link>
             );

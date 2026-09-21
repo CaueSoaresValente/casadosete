@@ -61,6 +61,32 @@ async function main() {
   }
 
   console.log(`✅ ${categories.length} main categories configured!`);
+
+  // Ensure order schema updates in Neon PostgreSQL
+  const newStatuses = [
+    "ORDER_PLACED",
+    "INVOICED",
+    "SEPARATING",
+    "PACKING",
+    "IN_TRANSIT",
+    "READY_FOR_PICKUP",
+    "COMPLETED",
+  ];
+
+  for (const s of newStatuses) {
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TYPE "OrderStatus" ADD VALUE IF NOT EXISTS '${s}';`);
+    } catch {
+      // ignore
+    }
+  }
+
+  await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "carrier" TEXT;`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "estimated_delivery_date" TIMESTAMP(3);`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "modality" TEXT NOT NULL DEFAULT 'WEBSITE';`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "internal_notes" TEXT;`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_notes" TEXT;`);
+  console.log("✅ Order schema columns and statuses configured in Neon DB!");
 }
 
 main()

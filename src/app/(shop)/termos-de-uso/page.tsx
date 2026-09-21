@@ -67,10 +67,9 @@ export default function TermosDeUsoPage() {
             3. Pagamento
           </h2>
           <p>
-            Aceitamos pagamento via PIX, cartão de crédito (até 12x),
-            cartão de débito e boleto bancário. O processamento de pagamentos é
-            realizado pelo gateway Mercado Pago, que possui seus próprios termos
-            de serviço e política de privacidade.
+            Aceitamos diversas formas de pagamento (PIX, transferência bancária, etc). O processamento 
+            e as condições de pagamento são combinados de forma segura e direta com nossa equipe de 
+            atendimento via WhatsApp, no momento da confirmação do seu pedido.
           </p>
         </section>
 
