@@ -17,10 +17,12 @@ import {
   Loader2,
   MessageCircle,
   Store,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "react-toastify";
+import { PAYMENT_STATUSES, getPaymentStatusLabel } from "@/lib/payment-status";
 
 type Order = {
   id: string;
@@ -148,6 +150,9 @@ export default function AdminPedidosPage() {
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [orderDetail, setOrderDetail] = useState<Record<string, unknown> | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [payStatusInput, setPayStatusInput] = useState("a_combinar");
+  const [payAmountInput, setPayAmountInput] = useState("");
+  const [savingPayment, setSavingPayment] = useState(false);
 
   // Manual order modal
   const [showManualModal, setShowManualModal] = useState(false);
@@ -186,6 +191,7 @@ export default function AdminPedidosPage() {
   }, [page, search, statusFilter, originFilter]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOrders();
   }, [fetchOrders]);
 
@@ -195,6 +201,14 @@ export default function AdminPedidosPage() {
       const res = await fetch(`/api/admin/orders/${orderId}`);
       const data = await res.json();
       setOrderDetail(data);
+      setPayStatusInput(data.paymentStatus || "a_combinar");
+      setPayAmountInput(
+        data.paymentAmount
+          ? String(data.paymentAmount)
+          : data.total
+          ? String(data.total)
+          : ""
+      );
       setSelectedOrder(orderId);
     } catch {
       setOrderDetail(null);
@@ -224,6 +238,51 @@ export default function AdminPedidosPage() {
       }
     } catch {
       toast.error("Erro de conexão ao atualizar pedido");
+    }
+  };
+
+  const updatePaymentStatus = async (
+    orderId: string,
+    newPaymentStatus: string,
+    paymentAmount?: string
+  ) => {
+    setSavingPayment(true);
+    try {
+      const payload: Record<string, unknown> = {
+        paymentStatus: newPaymentStatus,
+      };
+
+      if (newPaymentStatus === "aprovado") {
+        const amountNum = paymentAmount ? parseFloat(paymentAmount) : 0;
+        if (isNaN(amountNum) || amountNum < 0) {
+          toast.error("Informe um valor recebido válido.");
+          setSavingPayment(false);
+          return;
+        }
+        payload.paymentAmount = amountNum;
+      }
+
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Erro ao atualizar status de pagamento");
+        return;
+      }
+
+      toast.success("Status de pagamento atualizado com sucesso!");
+      fetchOrders();
+      if (selectedOrder === orderId) {
+        fetchOrderDetail(orderId);
+      }
+    } catch {
+      toast.error("Erro de conexão ao atualizar status de pagamento");
+    } finally {
+      setSavingPayment(false);
     }
   };
 
@@ -620,6 +679,112 @@ export default function AdminPedidosPage() {
                         💡 Ao confirmar o pagamento, o estoque será descontado automaticamente.
                       </p>
                     )}
+                </div>
+
+                {/* Seção Pagamento */}
+                <div className="bg-night-50 p-4 rounded-xl border border-night-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-night-800 flex items-center gap-1.5">
+                      <CreditCard className="w-4 h-4 text-gold-600" />
+                      Status do Pagamento
+                    </h3>
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full border bg-white text-night-700 border-night-200">
+                      Atual: {getPaymentStatusLabel((orderDetail as { paymentStatus?: string }).paymentStatus || "")}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs font-medium text-night-600 mb-1">
+                        Alterar pagamento para
+                      </label>
+                      <select
+                        value={payStatusInput}
+                        onChange={(e) => setPayStatusInput(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-night-200 text-sm focus:outline-none focus:border-gold-400 bg-white"
+                      >
+                        {PAYMENT_STATUSES.map((s) => (
+                          <option key={s.value} value={s.value}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {payStatusInput === "aprovado" && (
+                      <div>
+                        <label className="block text-xs font-medium text-night-600 mb-1">
+                          Valor recebido (R$) *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={payAmountInput}
+                          onChange={(e) => setPayAmountInput(e.target.value)}
+                          placeholder="0.00"
+                          className="w-full px-3 py-2 rounded-lg border border-night-200 text-sm focus:outline-none focus:border-gold-400 bg-white"
+                        />
+                      </div>
+                    )}
+
+                    {(payStatusInput !== (orderDetail as { paymentStatus?: string }).paymentStatus ||
+                      (payStatusInput === "aprovado" && payAmountInput !== ((orderDetail as { paymentAmount?: string }).paymentAmount || ""))) && (
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => selectedOrder && updatePaymentStatus(selectedOrder, payStatusInput, payAmountInput)}
+                          disabled={savingPayment}
+                          className="px-3.5 py-1.5 bg-gold-600 hover:bg-gold-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                        >
+                          {savingPayment && <Loader2 className="w-3 h-3 animate-spin" />}
+                          Salvar pagamento
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Informações adicionais do pagamento aprovado */}
+                  {(orderDetail as { paymentPaidAt?: string }).paymentPaidAt && (
+                    <div className="text-[11px] text-night-500 pt-1">
+                      <span>
+                        Pago em: {new Date((orderDetail as { paymentPaidAt?: string }).paymentPaidAt!).toLocaleString("pt-BR")}
+                      </span>
+                      {(orderDetail as { paymentAmount?: string }).paymentAmount && (
+                        <span className="ml-2 font-medium text-night-700">
+                          (Valor: {formatPrice(parseFloat((orderDetail as { paymentAmount?: string }).paymentAmount!) * 100)})
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Histórico de alterações de pagamento */}
+                  {((orderDetail as { paymentHistory?: Array<{ id: string; oldStatus: string | null; newStatus: string; changedBy: string | null; changedAt: string; observation: string | null }> }).paymentHistory || []).length > 0 && (
+                    <div className="pt-2 border-t border-night-200">
+                      <h4 className="text-xs font-medium text-night-700 mb-1.5">
+                        Histórico de pagamento
+                      </h4>
+                      <div className="space-y-1 max-h-32 overflow-y-auto text-[11px] pr-1">
+                        {((orderDetail as { paymentHistory?: Array<{ id: string; oldStatus: string | null; newStatus: string; changedBy: string | null; changedAt: string; observation: string | null }> }).paymentHistory || []).map((h) => (
+                          <div
+                            key={h.id}
+                            className="flex justify-between items-center bg-white px-2 py-1 rounded border border-night-100 text-night-600"
+                          >
+                            <span>
+                              <strong>{getPaymentStatusLabel(h.newStatus)}</strong>
+                              {h.observation && h.observation !== `Status de pagamento alterado para ${h.newStatus}`
+                                ? ` — ${h.observation}`
+                                : ""}
+                            </span>
+                            <span className="text-night-400 text-[10px]">
+                              {new Date(h.changedAt).toLocaleDateString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                              {h.changedBy ? ` (${h.changedBy})` : ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Customer info */}

@@ -38,6 +38,7 @@ export async function GET(
     discount: order.discount.toString(),
     total: order.total.toString(),
     paymentAmount: order.paymentAmount ? order.paymentAmount.toString() : null,
+    paymentPaidAt: order.paymentPaidAt ? order.paymentPaidAt.toISOString() : null,
     source: order.source,
     carrier: order.carrier || null,
     trackingCode: order.trackingCode || null,
@@ -105,19 +106,63 @@ export async function PATCH(
 
     const { paymentAmount } = body;
 
+    // Sincronização mínima para que os status não se contradigam:
+    let finalStatus = status;
+    let finalPaymentStatus = paymentStatus;
+
+    // 1. payment_status virar "aprovado" move de "Aguardando pagamento" para "Pagamento confirmado"
+    if (finalPaymentStatus === "aprovado") {
+      if (!finalStatus && (order.status === "PENDING_PAYMENT" || order.status === "ORDER_PLACED")) {
+        finalStatus = "PAYMENT_CONFIRMED";
+      }
+    }
+
+    // 2. Marcar o pedido como "Pagamento confirmado" define payment_status como "aprovado"
+    if (finalStatus === "PAYMENT_CONFIRMED") {
+      if (!finalPaymentStatus && order.paymentStatus !== "aprovado") {
+        finalPaymentStatus = "aprovado";
+      }
+    }
+
+    // 3. Cancelado no pedido define payment_status como "cancelado"
+    if (finalStatus === "CANCELLED") {
+      if (!finalPaymentStatus && order.paymentStatus !== "cancelado") {
+        finalPaymentStatus = "cancelado";
+      }
+    }
+
+    // 4. Reembolsado no pedido define payment_status como "reembolsado"
+    if (finalStatus === "REFUNDED") {
+      if (!finalPaymentStatus && order.paymentStatus !== "reembolsado") {
+        finalPaymentStatus = "reembolsado";
+      }
+    }
+
+    // Sincronização inversa (alteração direta via paymentStatus):
+    if (finalPaymentStatus === "cancelado") {
+      if (!finalStatus && order.status !== "CANCELLED") {
+        finalStatus = "CANCELLED";
+      }
+    }
+    if (finalPaymentStatus === "reembolsado") {
+      if (!finalStatus && order.status !== "REFUNDED") {
+        finalStatus = "REFUNDED";
+      }
+    }
+
     // Update order and create status history entry in transaction
     const updated = await prisma.$transaction(async (tx) => {
       // Build dynamic update data
       const updateData: Record<string, unknown> = {};
 
-      if (status !== undefined && status !== null) {
-        updateData.status = status;
+      if (finalStatus !== undefined && finalStatus !== null) {
+        updateData.status = finalStatus;
       }
-      if (paymentStatus !== undefined && paymentStatus !== null) {
-        updateData.paymentStatus = paymentStatus;
-        if (paymentStatus === 'aprovado' && order.paymentStatus !== 'aprovado') {
+      if (finalPaymentStatus !== undefined && finalPaymentStatus !== null) {
+        updateData.paymentStatus = finalPaymentStatus;
+        if (finalPaymentStatus === 'aprovado' && order.paymentStatus !== 'aprovado') {
            updateData.paymentPaidAt = new Date();
-           if (paymentAmount !== undefined) {
+           if (paymentAmount !== undefined && paymentAmount !== null && paymentAmount !== "") {
              updateData.paymentAmount = paymentAmount;
            }
         }
@@ -150,24 +195,24 @@ export async function PATCH(
 
       const changedBy = session.user.name || session.user.email || "admin";
 
-      if (status && status !== order.status) {
+      if (finalStatus && finalStatus !== order.status) {
         await tx.orderStatusHistory.create({
           data: {
             orderId: id,
-            status,
-            note: note || `Status operacional alterado para ${status}`,
+            status: finalStatus,
+            note: note || `Status operacional alterado para ${finalStatus}`,
             changedBy,
           },
         });
       }
 
-      if (paymentStatus && paymentStatus !== order.paymentStatus) {
+      if (finalPaymentStatus && finalPaymentStatus !== order.paymentStatus) {
         await tx.paymentStatusHistory.create({
           data: {
             orderId: id,
             oldStatus: order.paymentStatus,
-            newStatus: paymentStatus,
-            observation: note || `Status de pagamento alterado para ${paymentStatus}`,
+            newStatus: finalPaymentStatus,
+            observation: note || `Status de pagamento alterado para ${finalPaymentStatus}`,
             changedBy,
           },
         });
@@ -179,10 +224,10 @@ export async function PATCH(
 
       // WHATSAPP orders: decrement stock when payment is approved if not already decremented
       const isNowPaymentConfirmed =
-        (paymentStatus === "aprovado" ||
-          paymentStatus === "APPROVED" ||
-          paymentStatus === "CONFIRMED" ||
-          status === "PAYMENT_CONFIRMED") &&
+        (finalPaymentStatus === "aprovado" ||
+          finalPaymentStatus === "APPROVED" ||
+          finalPaymentStatus === "CONFIRMED" ||
+          finalStatus === "PAYMENT_CONFIRMED") &&
         order.paymentStatus !== "aprovado" &&
         order.paymentStatus !== "APPROVED" &&
         order.paymentStatus !== "CONFIRMED" &&
@@ -265,7 +310,7 @@ export async function PATCH(
         order.status === "READY_FOR_PICKUP" ||
         order.status === "COMPLETED";
 
-      if (status === "CANCELLED" && order.status !== "CANCELLED" && wasStockDecremented) {
+      if (finalStatus === "CANCELLED" && order.status !== "CANCELLED" && wasStockDecremented) {
         for (const item of items) {
           if (item.variantId) {
             await tx.productVariant.update({

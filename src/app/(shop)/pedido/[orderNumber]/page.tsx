@@ -13,6 +13,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { getPaymentStatusLabel } from "@/lib/payment-status";
 
 export const metadata: Metadata = {
   title: "Pedido confirmado — Casa do 7",
@@ -81,15 +82,13 @@ export default async function OrderConfirmationPage({
       {/* Order details */}
       <div className="bg-white rounded-xl border border-night-100 overflow-hidden mb-6">
         {/* Status */}
-        <div className="bg-gold-50 px-5 py-3 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-gold-600" />
-          <span className="text-sm font-medium text-gold-700">
-            {order.paymentMethod === "PIX"
-              ? "Aguardando pagamento via PIX"
-              : order.paymentMethod === "BOLETO"
-                ? "Aguardando pagamento do boleto"
-                : "Pagamento em processamento"}
-          </span>
+        <div className="bg-gold-50 px-5 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-gold-600" />
+            <span className="text-sm font-medium text-gold-700">
+              {getPaymentStatusLabel(order.paymentStatus)}
+            </span>
+          </div>
         </div>
 
         {/* Payment info */}

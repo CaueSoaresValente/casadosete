@@ -355,6 +355,7 @@ model Order {
   items          OrderItem[]
   statusHistory  OrderStatusHistory[]
   paymentHistory PaymentStatusHistory[]
+  box            OrderBox?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -521,3 +522,85 @@ model PaymentStatusHistory {
   @@index([orderId])
   @@map("payment_status_history")
 }
+
+// ============================================
+// MONTADOR DE BOX DE ORIXÁ
+// ============================================
+
+model Orixa {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  colorHex  String   @map("color_hex")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("orixas")
+}
+
+model BoxItem {
+  id          String   @id @default(cuid())
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String?  @map("image_url")
+  maxQuantity Int?     @map("max_quantity") // Máximo permitido por pedido (null = sem limite)
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("box_items")
+}
+
+model BoxObjectOption {
+  id        String   @id @default(cuid())
+  name      String   // Ex.: "Objeto + pulseira", "2 objetos"
+  price     Decimal  @db.Decimal(10, 2) // Preço fixo obrigatório
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("box_object_options")
+}
+
+model BoxConfig {
+  id          String   @id @default("default")
+  // minItems conta o TOTAL DE UNIDADES escolhidas (soma das quantidades), não itens distintos. null = sem mínimo.
+  minItems    Int?     @map("min_items")
+  basePrice   Decimal  @default(0) @map("base_price") @db.Decimal(10, 2) // 0 = sem valor base
+  boxImageUrl String?  @map("box_image_url") // Foto base da box
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("box_configs")
+}
+
+model OrderBox {
+  id                  String   @id @default(cuid())
+  orderId             String   @unique @map("order_id")
+
+  // Orixás gravados no momento da compra (o secundário pode ser igual ao principal)
+  primaryOrixaName    String   @map("primary_orixa_name")
+  primaryOrixaColor   String   @map("primary_orixa_color")
+  secondaryOrixaName  String?  @map("secondary_orixa_name")
+  secondaryOrixaColor String?  @map("secondary_orixa_color")
+
+  // Valores e opção de objeto gravados no momento
+  basePrice           Decimal  @map("base_price") @db.Decimal(10, 2)
+  objectOptionName    String?  @map("object_option_name")
+  objectOptionPrice   Decimal? @map("object_option_price") @db.Decimal(10, 2)
+
+  // Observações livres do cliente
+  notes               String?
+
+  // Snapshot dos itens escolhidos: [{ id, name, price, quantity }]
+  itemsSnapshot       Json     @map("items_snapshot")
+
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_boxes")
+}
+
