@@ -16,6 +16,7 @@ import {
   X,
   ChevronRight,
   Mail,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ const adminNavItems = [
   { name: "Clientes", href: "/gestao/clientes", icon: Users },
   { name: "Leads & Alertas", href: "/gestao/leads", icon: Mail },
   { name: "Cupons", href: "/gestao/cupons", icon: Tag },
+  { name: "Box de Orixá", href: "/gestao/box", icon: Gift },
   { name: "Métricas", href: "/gestao/metricas", icon: BarChart3 },
 ];
 
