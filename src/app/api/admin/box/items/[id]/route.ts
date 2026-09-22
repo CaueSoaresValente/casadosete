@@ -16,6 +16,7 @@ const patchBoxItemSchema = z.object({
     .optional(),
   sortOrder: z.number().int().optional(),
   isActive: z.boolean().optional(),
+  isPartOfFullBox: z.boolean().optional(),
 });
 
 function isAdmin(role: string | null | undefined) {
@@ -44,8 +45,15 @@ export async function PATCH(
       );
     }
 
-    const { name, price, imageUrl, maxQuantity, sortOrder, isActive } =
-      parsed.data;
+    const {
+      name,
+      price,
+      imageUrl,
+      maxQuantity,
+      sortOrder,
+      isActive,
+      isPartOfFullBox,
+    } = parsed.data;
 
     const data: Prisma.BoxItemUpdateInput = {};
     if (name !== undefined) data.name = name;
@@ -54,6 +62,7 @@ export async function PATCH(
     if (maxQuantity !== undefined) data.maxQuantity = maxQuantity;
     if (sortOrder !== undefined) data.sortOrder = sortOrder;
     if (isActive !== undefined) data.isActive = isActive;
+    if (isPartOfFullBox !== undefined) data.isPartOfFullBox = isPartOfFullBox;
 
     const item = await prisma.boxItem.update({
       where: { id },

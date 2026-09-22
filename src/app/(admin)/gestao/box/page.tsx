@@ -26,6 +26,7 @@ type BoxItem = {
   maxQuantity: number | null;
   sortOrder: number;
   isActive: boolean;
+  isPartOfFullBox: boolean;
   createdAt: string;
 };
 
@@ -62,6 +63,7 @@ const emptyItemForm = {
   maxQuantity: "",
   sortOrder: 0,
   isActive: true,
+  isPartOfFullBox: true,
 };
 
 const emptyOptionForm = {
@@ -568,6 +570,7 @@ function BoxItemsTab() {
       maxQuantity: item.maxQuantity != null ? String(item.maxQuantity) : "",
       sortOrder: item.sortOrder,
       isActive: item.isActive,
+      isPartOfFullBox: item.isPartOfFullBox ?? true,
     });
     setFormError("");
     setShowForm(true);
@@ -675,6 +678,7 @@ function BoxItemsTab() {
           maxQuantity: parsedMaxQty,
           sortOrder: Number(form.sortOrder),
           isActive: form.isActive,
+          isPartOfFullBox: form.isPartOfFullBox,
         }),
       });
 
@@ -769,6 +773,9 @@ function BoxItemsTab() {
                   Qtd. Máxima
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-night-600">
+                  Caixa completa
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-night-600">
                   Ordem
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-night-600">
@@ -815,6 +822,18 @@ function BoxItemsTab() {
                     ) : (
                       <span className="text-night-400 text-xs">Sem limite</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={[
+                        "px-2 py-0.5 rounded-full text-xs font-semibold",
+                        item.isPartOfFullBox
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-night-100 text-night-500",
+                      ].join(" ")}
+                    >
+                      {item.isPartOfFullBox ? "Sim" : "Não"}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-night-500">{item.sortOrder}</td>
                   <td className="px-4 py-3">
@@ -1021,6 +1040,29 @@ function BoxItemsTab() {
                   className="w-4 h-4 accent-gold-600"
                 />
                 <span className="text-sm text-night-700">Ativo</span>
+              </label>
+
+              {/* Faz parte da caixa completa */}
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.isPartOfFullBox}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      isPartOfFullBox: e.target.checked,
+                    }))
+                  }
+                  className="w-4 h-4 mt-0.5 accent-gold-600"
+                />
+                <div>
+                  <span className="text-sm font-medium text-night-700 block">
+                    Faz parte da caixa completa
+                  </span>
+                  <span className="text-xs text-night-400 block">
+                    Define se o item é incluído na montagem de box fechada padrão.
+                  </span>
+                </div>
               </label>
 
               {formError && <p className="text-red-500 text-sm">{formError}</p>}

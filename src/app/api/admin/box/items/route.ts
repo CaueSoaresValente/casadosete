@@ -16,6 +16,7 @@ const boxItemSchema = z.object({
     .optional(),
   sortOrder: z.number().int().default(0),
   isActive: z.boolean().default(true),
+  isPartOfFullBox: z.boolean().default(true),
 });
 
 function isAdmin(role: string | null | undefined) {
@@ -57,8 +58,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, price, imageUrl, maxQuantity, sortOrder, isActive } =
-      parsed.data;
+    const {
+      name,
+      price,
+      imageUrl,
+      maxQuantity,
+      sortOrder,
+      isActive,
+      isPartOfFullBox,
+    } = parsed.data;
 
     const item = await prisma.boxItem.create({
       data: {
@@ -68,6 +76,7 @@ export async function POST(request: Request) {
         maxQuantity: maxQuantity ?? null,
         sortOrder,
         isActive,
+        isPartOfFullBox,
       },
     });
 
