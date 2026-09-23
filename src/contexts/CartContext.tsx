@@ -9,6 +9,27 @@ import {
   type ReactNode,
 } from "react";
 
+export type BoxCustomization = {
+  primaryOrixa: { id: string; name: string; colorHex: string };
+  primaryImage?: {
+    id: string;
+    name: string;
+    material: string;
+    price: number;
+  };
+  secondaryImage?: {
+    orixa: { id: string; name: string; colorHex: string };
+    id: string;
+    name: string;
+    material: string;
+    price: number;
+  };
+  items: Array<{ id: string; name: string; price: number; quantity: number }>;
+  objectOption?: { id: string; name: string; price: number };
+  note?: string;
+  total: number;
+};
+
 export type CartItem = {
   productId: string;
   variantId: string | null;
@@ -20,6 +41,7 @@ export type CartItem = {
   quantity: number;
   stock: number;
   isBackorder: boolean; // true when item was out-of-stock at time of adding
+  boxCustomization?: BoxCustomization;
 };
 
 type CartContextType = {
@@ -64,9 +86,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // Load from localStorage on mount
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(loadCartFromStorage());
     setLoaded(true);
   }, []);
+
 
   // Save to localStorage on change
   useEffect(() => {

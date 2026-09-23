@@ -554,6 +554,19 @@ model BoxItem {
   @@map("box_items")
 }
 
+model BoxImageOption {
+  id        String   @id @default(cuid())
+  name      String   // Ex.: "Resina", "Biscuit"
+  price     Decimal  @db.Decimal(10, 2)
+  imageUrl  String?  @map("image_url")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("box_image_options")
+}
+
 model BoxObjectOption {
   id        String   @id @default(cuid())
   name      String   // Ex.: "Objeto + pulseira", "2 objetos"

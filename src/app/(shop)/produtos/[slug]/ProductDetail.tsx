@@ -18,6 +18,7 @@ import {
 import { formatPrice } from "@/lib/utils";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "react-toastify";
+import BoxAssembler from "./BoxAssembler";
 
 type ProductImage = {
   id: string;
@@ -375,63 +376,75 @@ export default function ProductDetail({ product }: { product: Product }) {
             </div>
           )}
 
-          {/* Quantity + Add to cart */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex items-center border border-night-200 rounded-lg">
+          {/* Quantity + Add to cart  –  or Box Assembler */}
+          {product.slug === "box-axe" ? (
+            <div className="mb-5">
+              <BoxAssembler
+                productId={product.id}
+                productName={product.name}
+                productSlug={product.slug}
+                productImageUrl={product.images[0]?.url || null}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 mb-5">
+              <div className="flex items-center border border-night-200 rounded-lg">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="px-3 py-2 text-night-500 hover:text-night-700"
+                  disabled={quantity <= 1}
+                >
+                  −
+                </button>
+                <span className="px-3 py-2 text-sm font-medium text-night-800 min-w-[2.5rem] text-center">
+                  {quantity}
+                </span>
+                <button
+                  onClick={() =>
+                    setQuantity(Math.min(inStock ? (totalStock || 99) : 99, quantity + 1))
+                  }
+                  className="px-3 py-2 text-night-500 hover:text-night-700"
+                >
+                  +
+                </button>
+              </div>
+
               <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="px-3 py-2 text-night-500 hover:text-night-700"
-                disabled={quantity <= 1}
+                onClick={handleAddToCart}
+                className={`flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-sm transition-all text-white hover:shadow-gold hover:scale-[1.01] active:scale-[0.99]`}
+                style={{ backgroundColor: inStock ? "var(--color-gold-500)" : "#d97706" }}
               >
-                −
+                <ShoppingBag className="w-4 h-4" />
+                {inStock ? "Adicionar ao carrinho" : "Pedir por encomenda"}
               </button>
-              <span className="px-3 py-2 text-sm font-medium text-night-800 min-w-[2.5rem] text-center">
-                {quantity}
-              </span>
+
               <button
-                onClick={() =>
-                  setQuantity(Math.min(inStock ? (totalStock || 99) : 99, quantity + 1))
-                }
-                className="px-3 py-2 text-night-500 hover:text-night-700"
+                onClick={handleToggleFavorite}
+                disabled={favoriteLoading}
+                title={isFavorite ? "Remover dos favoritos" : "Salvar nos favoritos"}
+                aria-label="Favoritar produto"
+                className={`p-3 rounded-lg border transition-all ${
+                  isFavorite
+                    ? "border-ruby-400 bg-ruby-50 text-ruby-600 shadow-sm"
+                    : "border-night-200 hover:border-ruby-300 hover:bg-ruby-50 text-night-400 hover:text-ruby-500"
+                }`}
               >
-                +
+                <Heart
+                  className={`w-5 h-5 transition-transform active:scale-125 ${
+                    isFavorite ? "fill-ruby-500 text-ruby-500" : ""
+                  }`}
+                />
               </button>
             </div>
+          )}
 
-            <button
-              onClick={handleAddToCart}
-              className={`flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-sm transition-all text-white hover:shadow-gold hover:scale-[1.01] active:scale-[0.99]`}
-              style={{ backgroundColor: inStock ? "var(--color-gold-500)" : "#d97706" }}
-            >
-              <ShoppingBag className="w-4 h-4" />
-              {inStock ? "Adicionar ao carrinho" : "Pedir por encomenda"}
-            </button>
-
-            <button
-              onClick={handleToggleFavorite}
-              disabled={favoriteLoading}
-              title={isFavorite ? "Remover dos favoritos" : "Salvar nos favoritos"}
-              aria-label="Favoritar produto"
-              className={`p-3 rounded-lg border transition-all ${
-                isFavorite
-                  ? "border-ruby-400 bg-ruby-50 text-ruby-600 shadow-sm"
-                  : "border-night-200 hover:border-ruby-300 hover:bg-ruby-50 text-night-400 hover:text-ruby-500"
-              }`}
-            >
-              <Heart
-                className={`w-5 h-5 transition-transform active:scale-125 ${
-                  isFavorite ? "fill-ruby-500 text-ruby-500" : ""
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Stock indicator */}
-          {inStock && totalStock > 0 && totalStock <= 5 && (
+          {/* Stock indicator (only for normal products) */}
+          {product.slug !== "box-axe" && inStock && totalStock > 0 && totalStock <= 5 && (
             <p className="text-sm text-ruby-500 font-medium mb-4">
               ⚡ Últimas {totalStock} unidade{totalStock > 1 ? "s" : ""}!
             </p>
           )}
+
 
           {/* Trust badges */}
           <div className="grid grid-cols-2 gap-3 mb-6 pt-4 border-t border-border-light">

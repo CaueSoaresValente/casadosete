@@ -4,16 +4,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-const boxItemSchema = z.object({
+const boxImageOptionSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100),
   price: z.number().min(0, "Preço não pode ser negativo"),
   imageUrl: z.string().nullable().optional(),
-  maxQuantity: z
-    .number()
-    .int("Quantidade máxima deve ser um número inteiro")
-    .positive("Quantidade máxima deve ser maior que 0")
-    .nullable()
-    .optional(),
   sortOrder: z.number().int().default(0),
   isActive: z.boolean().default(true),
 });
@@ -28,16 +22,22 @@ export async function GET() {
     return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   }
 
-  const items = await prisma.boxItem.findMany({
-    orderBy: { sortOrder: "asc" },
-  });
+  try {
+    const options = await prisma.boxImageOption.findMany({
+      orderBy: { sortOrder: "asc" },
+    });
 
-  return NextResponse.json(
-    items.map((item) => ({
-      ...item,
-      price: item.price.toString(),
-    }))
-  );
+    return NextResponse.json(
+      options.map((option) => ({
+        ...option,
+        price: option.price.toString(),
+      }))
+    );
+  } catch (error) {
+    console.error("Error fetching box image options:", error);
+    // Return empty list gracefully if table does not exist yet before db push
+    return NextResponse.json([]);
+  }
 }
 
 export async function POST(request: Request) {
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const parsed = boxItemSchema.safeParse(body);
+    const parsed = boxImageOptionSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -57,21 +57,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const {
-      name,
-      price,
-      imageUrl,
-      maxQuantity,
-      sortOrder,
-      isActive,
-    } = parsed.data;
+    const { name, price, imageUrl, sortOrder, isActive } = parsed.data;
 
-    const item = await prisma.boxItem.create({
+    const option = await prisma.boxImageOption.create({
       data: {
         name,
         price: new Prisma.Decimal(price.toString()),
         imageUrl: imageUrl || null,
-        maxQuantity: maxQuantity ?? null,
         sortOrder,
         isActive,
       },
@@ -79,13 +71,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        ...item,
-        price: item.price.toString(),
+        ...option,
+        price: option.price.toString(),
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating box item:", error);
+    console.error("Error creating box image option:", error);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }

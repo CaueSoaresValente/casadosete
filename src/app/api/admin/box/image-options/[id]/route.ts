@@ -4,16 +4,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-const patchBoxItemSchema = z.object({
+const patchBoxImageOptionSchema = z.object({
   name: z.string().min(1, "Nome não pode ficar vazio").max(100).optional(),
   price: z.number().min(0, "Preço não pode ser negativo").optional(),
   imageUrl: z.string().nullable().optional(),
-  maxQuantity: z
-    .number()
-    .int("Quantidade máxima deve ser um número inteiro")
-    .positive("Quantidade máxima deve ser maior que 0")
-    .nullable()
-    .optional(),
   sortOrder: z.number().int().optional(),
   isActive: z.boolean().optional(),
 });
@@ -35,7 +29,7 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const parsed = patchBoxItemSchema.safeParse(body);
+    const parsed = patchBoxImageOptionSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -44,31 +38,23 @@ export async function PATCH(
       );
     }
 
-    const {
-      name,
-      price,
-      imageUrl,
-      maxQuantity,
-      sortOrder,
-      isActive,
-    } = parsed.data;
+    const { name, price, imageUrl, sortOrder, isActive } = parsed.data;
 
-    const data: Prisma.BoxItemUpdateInput = {};
+    const data: Prisma.BoxImageOptionUpdateInput = {};
     if (name !== undefined) data.name = name;
     if (price !== undefined) data.price = new Prisma.Decimal(price.toString());
     if (imageUrl !== undefined) data.imageUrl = imageUrl;
-    if (maxQuantity !== undefined) data.maxQuantity = maxQuantity;
     if (sortOrder !== undefined) data.sortOrder = sortOrder;
     if (isActive !== undefined) data.isActive = isActive;
 
-    const item = await prisma.boxItem.update({
+    const option = await prisma.boxImageOption.update({
       where: { id },
       data,
     });
 
     return NextResponse.json({
-      ...item,
-      price: item.price.toString(),
+      ...option,
+      price: option.price.toString(),
     });
   } catch (error: unknown) {
     if (
@@ -78,11 +64,11 @@ export async function PATCH(
       (error as { code: string }).code === "P2025"
     ) {
       return NextResponse.json(
-        { error: "Item da box não encontrado" },
+        { error: "Opção de imagem não encontrada" },
         { status: 404 }
       );
     }
-    console.error("Error updating box item:", error);
+    console.error("Error updating box image option:", error);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }
@@ -99,7 +85,7 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await prisma.boxItem.delete({ where: { id } });
+    await prisma.boxImageOption.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     if (
@@ -109,11 +95,11 @@ export async function DELETE(
       (error as { code: string }).code === "P2025"
     ) {
       return NextResponse.json(
-        { error: "Item da box não encontrado" },
+        { error: "Opção de imagem não encontrada" },
         { status: 404 }
       );
     }
-    console.error("Error deleting box item:", error);
+    console.error("Error deleting box image option:", error);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }

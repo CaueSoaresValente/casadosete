@@ -26,7 +26,16 @@ type BoxItem = {
   maxQuantity: number | null;
   sortOrder: number;
   isActive: boolean;
-  isPartOfFullBox: boolean;
+  createdAt: string;
+};
+
+type BoxImageOption = {
+  id: string;
+  name: string;
+  price: string;
+  imageUrl: string | null;
+  sortOrder: number;
+  isActive: boolean;
   createdAt: string;
 };
 
@@ -63,7 +72,14 @@ const emptyItemForm = {
   maxQuantity: "",
   sortOrder: 0,
   isActive: true,
-  isPartOfFullBox: true,
+};
+
+const emptyImageOptionForm = {
+  name: "",
+  price: "0.00",
+  imageUrl: "",
+  sortOrder: 0,
+  isActive: true,
 };
 
 const emptyOptionForm = {
@@ -75,7 +91,7 @@ const emptyOptionForm = {
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 
-type Tab = "orixas" | "items" | "options" | "config";
+type Tab = "orixas" | "items" | "image-options" | "options" | "config";
 
 // ─── Main page ───────────────────────────────────────────────────────────────
 
@@ -114,6 +130,7 @@ export default function BoxPage() {
           {[
             { id: "orixas", label: "Orixás" },
             { id: "items", label: "Itens da box" },
+            { id: "image-options", label: "Opções de imagem" },
             { id: "options", label: "Opções de objeto" },
             { id: "config", label: "Configuração" },
           ].map((tab) => (
@@ -136,6 +153,7 @@ export default function BoxPage() {
       {/* Tab content */}
       {activeTab === "orixas" && <OrixasTab />}
       {activeTab === "items" && <BoxItemsTab />}
+      {activeTab === "image-options" && <BoxImageOptionsTab />}
       {activeTab === "options" && <BoxObjectOptionsTab />}
       {activeTab === "config" && <ConfigTab />}
     </div>
@@ -570,7 +588,6 @@ function BoxItemsTab() {
       maxQuantity: item.maxQuantity != null ? String(item.maxQuantity) : "",
       sortOrder: item.sortOrder,
       isActive: item.isActive,
-      isPartOfFullBox: item.isPartOfFullBox ?? true,
     });
     setFormError("");
     setShowForm(true);
@@ -678,7 +695,6 @@ function BoxItemsTab() {
           maxQuantity: parsedMaxQty,
           sortOrder: Number(form.sortOrder),
           isActive: form.isActive,
-          isPartOfFullBox: form.isPartOfFullBox,
         }),
       });
 
@@ -773,9 +789,6 @@ function BoxItemsTab() {
                   Qtd. Máxima
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-night-600">
-                  Caixa completa
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-night-600">
                   Ordem
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-night-600">
@@ -822,18 +835,6 @@ function BoxItemsTab() {
                     ) : (
                       <span className="text-night-400 text-xs">Sem limite</span>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={[
-                        "px-2 py-0.5 rounded-full text-xs font-semibold",
-                        item.isPartOfFullBox
-                          ? "bg-purple-100 text-purple-700"
-                          : "bg-night-100 text-night-500",
-                      ].join(" ")}
-                    >
-                      {item.isPartOfFullBox ? "Sim" : "Não"}
-                    </span>
                   </td>
                   <td className="px-4 py-3 text-night-500">{item.sortOrder}</td>
                   <td className="px-4 py-3">
@@ -1042,29 +1043,6 @@ function BoxItemsTab() {
                 <span className="text-sm text-night-700">Ativo</span>
               </label>
 
-              {/* Faz parte da caixa completa */}
-              <label className="flex items-start gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={form.isPartOfFullBox}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      isPartOfFullBox: e.target.checked,
-                    }))
-                  }
-                  className="w-4 h-4 mt-0.5 accent-gold-600"
-                />
-                <div>
-                  <span className="text-sm font-medium text-night-700 block">
-                    Faz parte da caixa completa
-                  </span>
-                  <span className="text-xs text-night-400 block">
-                    Define se o item é incluído na montagem de box fechada padrão.
-                  </span>
-                </div>
-              </label>
-
               {formError && <p className="text-red-500 text-sm">{formError}</p>}
 
               <div className="flex justify-end gap-3 pt-2">
@@ -1094,6 +1072,515 @@ function BoxItemsTab() {
         isOpen={deleteModal.isOpen}
         title="Excluir Item da Box"
         message={`Tem certeza que deseja excluir o item "${deleteModal.name}"? Os pedidos já feitos mantêm o histórico salvo.`}
+        confirmText={deleteModal.isDeleting ? "Excluindo…" : "Excluir"}
+        onConfirm={confirmDelete}
+        onCancel={() =>
+          setDeleteModal({ isOpen: false, id: "", name: "", isDeleting: false })
+        }
+        isLoading={deleteModal.isDeleting}
+      />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BoxImageOptionsTab
+// ═══════════════════════════════════════════════════════════════════════════
+
+function BoxImageOptionsTab() {
+  const [options, setOptions] = useState<BoxImageOption[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyImageOptionForm);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    id: string;
+    name: string;
+    isDeleting: boolean;
+  }>({ isOpen: false, id: "", name: "", isDeleting: false });
+
+  const fetchOptions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/box/image-options");
+      if (!res.ok) throw new Error("Erro ao carregar");
+      const data: BoxImageOption[] = await res.json();
+      setOptions(data);
+    } catch {
+      toast.error("Erro ao carregar opções de imagem");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchOptions();
+  }, [fetchOptions]);
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(emptyImageOptionForm);
+    setFormError("");
+    setShowForm(true);
+  };
+
+  const openEdit = (opt: BoxImageOption) => {
+    setEditingId(opt.id);
+    setForm({
+      name: opt.name,
+      price: opt.price,
+      imageUrl: opt.imageUrl || "",
+      sortOrder: opt.sortOrder,
+      isActive: opt.isActive,
+    });
+    setFormError("");
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(emptyImageOptionForm);
+    setFormError("");
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Falha no upload");
+      const data: { url: string } = await res.json();
+      setForm((f) => ({ ...f, imageUrl: data.url }));
+      toast.success("Foto da opção de imagem enviada!");
+    } catch {
+      toast.error("Erro ao enviar foto");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const toggleOptionActive = async (opt: BoxImageOption) => {
+    const nextActive = !opt.isActive;
+    setOptions((prev) =>
+      prev.map((o) => (o.id === opt.id ? { ...o, isActive: nextActive } : o))
+    );
+
+    try {
+      const res = await fetch(`/api/admin/box/image-options/${opt.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: nextActive }),
+      });
+      if (!res.ok) throw new Error("Erro ao atualizar status");
+      toast.success(
+        `"${opt.name}" agora está ${nextActive ? "ativo" : "inativo"}.`
+      );
+    } catch {
+      toast.error("Erro ao alterar status");
+      setOptions((prev) =>
+        prev.map((o) => (o.id === opt.id ? { ...o, isActive: opt.isActive } : o))
+      );
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setFormError("");
+
+    const parsedPrice = parseFloat(form.price);
+    if (isNaN(parsedPrice) || parsedPrice < 0) {
+      setFormError("Preço deve ser um valor numérico maior ou igual a zero.");
+      setSaving(false);
+      return;
+    }
+
+    try {
+      const url = editingId
+        ? `/api/admin/box/image-options/${editingId}`
+        : "/api/admin/box/image-options";
+      const method = editingId ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          price: parsedPrice,
+          imageUrl: form.imageUrl || null,
+          sortOrder: Number(form.sortOrder),
+          isActive: form.isActive,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        const msg = data.error || "Erro ao salvar opção de imagem";
+        setFormError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      toast.success(
+        editingId
+          ? `Opção "${form.name}" atualizada!`
+          : `Opção "${form.name}" criada!`
+      );
+      closeForm();
+      fetchOptions();
+    } catch {
+      setFormError("Erro de comunicação com o servidor.");
+      toast.error("Erro de comunicação com o servidor.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteClick = (opt: BoxImageOption) => {
+    setDeleteModal({
+      isOpen: true,
+      id: opt.id,
+      name: opt.name,
+      isDeleting: false,
+    });
+  };
+
+  const confirmDelete = async () => {
+    setDeleteModal((m) => ({ ...m, isDeleting: true }));
+    try {
+      const res = await fetch(
+        `/api/admin/box/image-options/${deleteModal.id}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error("Erro ao excluir");
+      toast.success(`Opção "${deleteModal.name}" excluída!`);
+      setDeleteModal({ isOpen: false, id: "", name: "", isDeleting: false });
+      fetchOptions();
+    } catch {
+      toast.error("Não foi possível excluir a opção.");
+      setDeleteModal((m) => ({ ...m, isDeleting: false }));
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-night-500">
+          Materiais de imagem disponíveis para a box ({options.length})
+        </p>
+        <button
+          type="button"
+          onClick={openCreate}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors shadow-sm font-medium"
+        >
+          <Plus className="w-4 h-4" />
+          Nova Opção de Imagem
+        </button>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12 text-night-400">
+          <Loader2 className="w-6 h-6 animate-spin mr-2" />
+          Carregando opções de imagem…
+        </div>
+      ) : options.length === 0 ? (
+        <div className="text-center py-12 border border-dashed border-night-200 rounded-xl text-night-400 text-sm">
+          Nenhuma opção de imagem cadastrada ainda.
+        </div>
+      ) : (
+        <div className="bg-white border border-night-100 rounded-xl overflow-hidden shadow-sm">
+          <table className="w-full text-sm">
+            <thead className="bg-night-50 border-b border-night-100 text-xs">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium text-night-600">
+                  Foto
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-night-600">
+                  Material
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-night-600">
+                  Preço
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-night-600">
+                  Ordem
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-night-600">
+                  Status (Clique p/ alternar)
+                </th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-night-50">
+              {options.map((opt) => (
+                <tr
+                  key={opt.id}
+                  className="hover:bg-night-50 transition-colors"
+                >
+                  <td className="px-4 py-3">
+                    {opt.imageUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={opt.imageUrl}
+                        alt={opt.name}
+                        className="w-10 h-10 object-cover rounded-lg border border-night-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-night-100 border border-night-200 flex items-center justify-center text-night-400">
+                        <ImageIcon className="w-5 h-5" />
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-night-800">
+                    {opt.name}
+                  </td>
+                  <td className="px-4 py-3 text-night-700 font-medium">
+                    R${" "}
+                    {Number(opt.price).toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td className="px-4 py-3 text-night-500">{opt.sortOrder}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleOptionActive(opt)}
+                      className={[
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer border",
+                        opt.isActive
+                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                          : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100",
+                      ].join(" ")}
+                      title={
+                        opt.isActive
+                          ? "Clique para desativar"
+                          : "Clique para ativar"
+                      }
+                    >
+                      <span
+                        className={[
+                          "w-1.5 h-1.5 rounded-full",
+                          opt.isActive ? "bg-green-500" : "bg-red-400",
+                        ].join(" ")}
+                      />
+                      {opt.isActive ? "Ativo" : "Inativo"}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(opt)}
+                        className="p-1.5 text-night-400 hover:text-night-700 hover:bg-night-100 rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClick(opt)}
+                        className="p-1.5 text-night-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Form modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-night-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-bold text-night-900">
+              {editingId ? "Editar Opção de Imagem" : "Nova Opção de Imagem"}
+            </h2>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Nome do material */}
+              <div>
+                <label className="block text-sm font-medium text-night-700 mb-1">
+                  Nome do material *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border border-night-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                  placeholder="Ex.: Resina, Biscuit"
+                />
+              </div>
+
+              {/* Preço */}
+              <div>
+                <label className="block text-sm font-medium text-night-700 mb-1">
+                  Preço (R$) *
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-night-500">R$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    required
+                    value={form.price}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, price: e.target.value }))
+                    }
+                    className="w-36 px-3 py-2 border border-night-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              {/* Upload de foto */}
+              <div>
+                <label className="block text-sm font-medium text-night-700 mb-1">
+                  Foto da opção
+                </label>
+                <div className="flex items-center gap-3">
+                  {form.imageUrl ? (
+                    <div className="relative group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={form.imageUrl}
+                        alt="Preview"
+                        className="w-16 h-16 object-cover rounded-lg border border-night-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow hover:bg-red-600 transition-colors"
+                        title="Remover foto"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg bg-night-100 border border-night-200 flex items-center justify-center text-night-400">
+                      <ImageIcon className="w-6 h-6" />
+                    </div>
+                  )}
+
+                  <div className="flex-1">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="image-option-upload-input"
+                    />
+                    <label
+                      htmlFor="image-option-upload-input"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-night-200 rounded-lg cursor-pointer hover:bg-night-50 text-night-700 font-medium transition-colors"
+                    >
+                      {uploadingImage ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Enviando…
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-3.5 h-3.5" />
+                          {form.imageUrl ? "Trocar foto" : "Escolher foto"}
+                        </>
+                      )}
+                    </label>
+                    <p className="text-[11px] text-night-400 mt-1">
+                      PNG, JPG ou WEBP até 5MB
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ordem */}
+              <div>
+                <label className="block text-sm font-medium text-night-700 mb-1">
+                  Ordem
+                </label>
+                <input
+                  type="number"
+                  value={form.sortOrder}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      sortOrder: Number(e.target.value),
+                    }))
+                  }
+                  className="w-28 px-3 py-2 border border-night-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+                />
+              </div>
+
+              {/* Ativo */}
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, isActive: e.target.checked }))
+                  }
+                  className="w-4 h-4 accent-gold-600"
+                />
+                <span className="text-sm text-night-700">Ativo</span>
+              </label>
+
+              {formError && <p className="text-red-500 text-sm">{formError}</p>}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className="px-4 py-2 text-sm text-night-600 border border-night-200 rounded-lg hover:bg-night-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 text-sm bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {editingId ? "Salvar" : "Criar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        title="Excluir Opção de Imagem"
+        message={`Tem certeza que deseja excluir a opção "${deleteModal.name}"? Os pedidos já feitos mantêm o histórico salvo.`}
         confirmText={deleteModal.isDeleting ? "Excluindo…" : "Excluir"}
         onConfirm={confirmDelete}
         onCancel={() =>
