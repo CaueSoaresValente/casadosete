@@ -377,7 +377,14 @@ export default function ProductDetail({ product }: { product: Product }) {
           )}
 
           {/* Quantity + Add to cart  –  or Box Assembler */}
-          {product.slug === "box-axe" ? (
+          {product.slug === "box-axe" ||
+          product.slug === "box-orixa" ||
+          product.categories?.some(
+            (c) =>
+              c.category.slug === "box-axe" ||
+              c.category.slug === "box-orixa" ||
+              c.category.name.toLowerCase().includes("box")
+          ) ? (
             <div className="mb-5">
               <BoxAssembler
                 productId={product.id}

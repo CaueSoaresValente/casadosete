@@ -212,6 +212,7 @@ export default function CheckoutPage() {
             variantId: i.variantId,
             quantity: i.quantity,
             isBackorder: i.isBackorder ?? false,
+            boxCustomization: i.boxCustomization || undefined,
           })),
         }),
       });
@@ -228,12 +229,44 @@ export default function CheckoutPage() {
 
       // Build the WhatsApp message with the order number
       const itemsList = items
-        .map(
-          (item) =>
-            `• ${item.quantity}x ${item.name}${item.variantName ? ` (${item.variantName})` : ""
-            }${item.isBackorder ? " [Por encomenda]" : ""} — ${formatPrice(item.price * item.quantity * 100)}`
-        )
-        .join("\n");
+        .map((item) => {
+          if (item.boxCustomization) {
+            const box = item.boxCustomization;
+            const lines = [
+              `• ${item.quantity}x ${item.name} — ${formatPrice(item.price * item.quantity * 100)}`,
+              `  └ Orixá principal: ${box.primaryOrixa.name}`,
+            ];
+            if (box.primaryImage) {
+              lines.push(`  └ Imagem principal: ${box.primaryImage.name}`);
+            }
+            if (box.secondaryImage) {
+              lines.push(`  └ Imagem secundária (${box.secondaryImage.orixa.name}): ${box.secondaryImage.name}`);
+            }
+            if (box.items && box.items.length > 0) {
+              const itemsSub = box.items
+                .filter((bi) => bi.quantity > 0)
+                .map((bi) => `    - ${bi.quantity}x ${bi.name}`)
+                .join("\n");
+              if (itemsSub) {
+                lines.push(`  └ Itens inclusos:\n${itemsSub}`);
+              }
+            }
+            if (box.objectOption) {
+              lines.push(`  └ Opção de objeto: ${box.objectOption.name}`);
+            }
+            if (box.note) {
+              lines.push(`  └ Observação: "${box.note}"`);
+            }
+            return lines.join("\n");
+          }
+
+          return `• ${item.quantity}x ${item.name}${
+            item.variantName ? ` (${item.variantName})` : ""
+          }${item.isBackorder ? " [Por encomenda]" : ""} — ${formatPrice(
+            item.price * item.quantity * 100
+          )}`;
+        })
+        .join("\n\n");
 
       const addressText = `${street}, ${number}${complement ? `, ${complement}` : ""
         } — ${neighborhood}, ${city}/${state} — CEP: ${zipCode}`;

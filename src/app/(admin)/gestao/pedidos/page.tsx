@@ -866,6 +866,147 @@ export default function AdminPedidosPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Box Axé Personalizada Snapshot */}
+                  {(orderDetail as { orderBox?: {
+                    id: string;
+                    primaryOrixaName: string;
+                    primaryOrixaColor: string;
+                    secondaryOrixaName: string | null;
+                    secondaryOrixaColor: string | null;
+                    basePrice: string;
+                    objectOptionName: string | null;
+                    objectOptionPrice: string | null;
+                    notes: string | null;
+                    itemsSnapshot: {
+                      primaryOrixa?: { id: string; name: string; colorHex: string };
+                      primaryImage?: { id: string; material: string; name: string; price: number } | null;
+                      secondaryImage?: {
+                        orixa: { id: string; name: string; colorHex: string };
+                        id: string;
+                        material: string;
+                        name: string;
+                        price: number;
+                      } | null;
+                      items?: Array<{ id: string; name: string; unitPrice: number; quantity: number; totalPrice: number }>;
+                      objectOption?: { id: string; name: string; price: number } | null;
+                      note?: string | null;
+                      unitTotal?: number;
+                    } | null;
+                  } | null }).orderBox && (() => {
+                    const ob = (orderDetail as { orderBox: {
+                      id: string;
+                      primaryOrixaName: string;
+                      primaryOrixaColor: string;
+                      secondaryOrixaName: string | null;
+                      secondaryOrixaColor: string | null;
+                      basePrice: string;
+                      objectOptionName: string | null;
+                      objectOptionPrice: string | null;
+                      notes: string | null;
+                      itemsSnapshot: {
+                        primaryOrixa?: { id: string; name: string; colorHex: string };
+                        primaryImage?: { id: string; material: string; name: string; price: number } | null;
+                        secondaryImage?: {
+                          orixa: { id: string; name: string; colorHex: string };
+                          id: string;
+                          material: string;
+                          name: string;
+                          price: number;
+                        } | null;
+                        items?: Array<{ id: string; name: string; unitPrice: number; quantity: number; totalPrice: number }>;
+                        objectOption?: { id: string; name: string; price: number } | null;
+                        note?: string | null;
+                        unitTotal?: number;
+                      } | null;
+                    } }).orderBox;
+                    const snapshot = typeof ob.itemsSnapshot === "object" && ob.itemsSnapshot !== null ? ob.itemsSnapshot : null;
+
+                    return (
+                      <div className="mt-3 p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 text-sm space-y-3">
+                        <div className="flex items-center justify-between border-b border-purple-200/80 pb-2">
+                          <h4 className="font-semibold text-purple-900 flex items-center gap-1.5">
+                            <span>📦</span> Personalização da Box
+                          </h4>
+                          <span className="text-xs font-bold text-purple-800">
+                            Unitário: {formatPrice(parseFloat(ob.basePrice) * 100)}
+                          </span>
+                        </div>
+
+                        {/* Orixás e Imagens */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white p-2.5 rounded-lg border border-purple-100">
+                            <span className="text-night-500 font-medium block mb-1">Orixá Principal</span>
+                            <div className="flex items-center gap-1.5 font-semibold text-night-800">
+                              <span
+                                className="w-3 h-3 rounded-full border border-white shadow-xs shrink-0"
+                                style={{ backgroundColor: ob.primaryOrixaColor }}
+                              />
+                              <span>{ob.primaryOrixaName}</span>
+                            </div>
+                            {snapshot?.primaryImage && (
+                              <span className="text-night-600 block mt-1 text-[11px]">
+                                Imagem: <strong>{snapshot.primaryImage.name}</strong> ({formatPrice(snapshot.primaryImage.price * 100)})
+                              </span>
+                            )}
+                          </div>
+
+                          {snapshot?.secondaryImage ? (
+                            <div className="bg-white p-2.5 rounded-lg border border-purple-100">
+                              <span className="text-night-500 font-medium block mb-1">Imagem Secundária</span>
+                              <div className="flex items-center gap-1.5 font-semibold text-night-800">
+                                <span
+                                  className="w-3 h-3 rounded-full border border-white shadow-xs shrink-0"
+                                  style={{ backgroundColor: snapshot.secondaryImage.orixa.colorHex }}
+                                />
+                                <span>{snapshot.secondaryImage.orixa.name}</span>
+                              </div>
+                              <span className="text-night-600 block mt-1 text-[11px]">
+                                Material: <strong>{snapshot.secondaryImage.material || snapshot.secondaryImage.name}</strong> ({formatPrice(snapshot.secondaryImage.price * 100)})
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="bg-white/50 p-2.5 rounded-lg border border-purple-100 text-night-400">
+                              <span className="font-medium block mb-1">Imagem Secundária</span>
+                              <span>Nenhuma</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Itens inclusos da Box */}
+                        {snapshot?.items && snapshot.items.length > 0 && (
+                          <div className="bg-white p-2.5 rounded-lg border border-purple-100 space-y-1.5">
+                            <span className="text-xs font-semibold text-night-700 block">Itens inclusos na box:</span>
+                            <div className="divide-y divide-night-50 text-xs">
+                              {snapshot.items.map((bi) => (
+                                <div key={bi.id} className="flex justify-between py-1 text-night-700">
+                                  <span>{bi.quantity}x {bi.name}</span>
+                                  <span className="text-night-500">{formatPrice(bi.totalPrice * 100)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Opção de Objeto & Observação */}
+                        {(ob.objectOptionName || ob.notes) && (
+                          <div className="space-y-1 text-xs text-night-700 pt-1">
+                            {ob.objectOptionName && (
+                              <p>
+                                <strong className="text-purple-900">Opção de objeto:</strong> {ob.objectOptionName}
+                                {ob.objectOptionPrice && ` (+${formatPrice(parseFloat(ob.objectOptionPrice) * 100)})`}
+                              </p>
+                            )}
+                            {ob.notes && (
+                              <p className="italic bg-white p-2 rounded border border-purple-100 text-night-600">
+                                <strong>Observação do cliente:</strong> &ldquo;{ob.notes}&rdquo;
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Totals */}

@@ -18,12 +18,13 @@ export async function GET(
     where: { id },
     include: {
       items: true,
+      box: true,
       statusHistory: {
         orderBy: { createdAt: "desc" },
       },
       paymentHistory: {
         orderBy: { changedAt: "desc" },
-      }
+      },
     },
   });
 
@@ -31,7 +32,7 @@ export async function GET(
     return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
   }
 
-    const serialized = {
+  const serialized = {
     ...order,
     subtotal: order.subtotal.toString(),
     shippingCost: order.shippingCost.toString(),
@@ -51,6 +52,16 @@ export async function GET(
     paymentStatus: order.paymentStatus || "a_combinar",
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
+    orderBox: order.box
+      ? {
+          ...order.box,
+          basePrice: order.box.basePrice.toString(),
+          objectOptionPrice: order.box.objectOptionPrice
+            ? order.box.objectOptionPrice.toString()
+            : null,
+          createdAt: order.box.createdAt.toISOString(),
+        }
+      : null,
     items: order.items.map((item) => ({
       ...item,
       unitPrice: item.unitPrice.toString(),
