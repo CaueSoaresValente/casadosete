@@ -23,6 +23,7 @@ type BoxImageOption = {
   name: string;
   price: string;
   imageUrl: string | null;
+  images?: Array<{ orixaId: string; imageUrl: string }>;
 };
 
 type ObjectOption = { id: string; name: string; price: string };
@@ -30,6 +31,7 @@ type ObjectOption = { id: string; name: string; price: string };
 type BoxConfig = {
   minItems: number | null;
   basePrice: string;
+  packagingFee: string;
   boxImageUrl: string | null;
 };
 
@@ -40,6 +42,21 @@ type BoxData = {
   objectOptions: ObjectOption[];
   imageOptions: BoxImageOption[];
 };
+
+// ─── Helper for photo resolution ─────────────────────────────────────────────
+
+function getImageForOption(
+  opt: BoxImageOption,
+  orixa: Orixa | null
+): string | null {
+  if (orixa && opt.images && opt.images.length > 0) {
+    const specific = opt.images.find((img) => img.orixaId === orixa.id);
+    if (specific?.imageUrl && specific.imageUrl.trim() !== "") {
+      return specific.imageUrl;
+    }
+  }
+  return opt.imageUrl || null;
+}
 
 // ─── Quantity stepper ─────────────────────────────────────────────────────────
 
@@ -128,11 +145,20 @@ export default function BoxAssembler({
       .finally(() => setLoading(false));
   }, []);
 
-  // ─── Price rule (Soma direta, sem caixa completa) ─────────────────────────────
+  const packagingFee = useMemo(() => {
+    return data?.config?.packagingFee
+      ? parseFloat(data.config.packagingFee)
+      : 8.0;
+  }, [data]);
+
+  // ─── Price rule (Soma direta com taxa fixa de embalagem) ───────────────────────
   const total = useMemo(() => {
     if (!data) return 0;
 
     let sum = 0;
+
+    // Taxa fixa de embalagem
+    sum += packagingFee;
 
     // Itens da box
     for (const item of data.items) {
@@ -158,7 +184,7 @@ export default function BoxAssembler({
     }
 
     return sum;
-  }, [data, itemQtys, primaryImage, secondaryImage, secondaryOrixa, selectedOption]);
+  }, [data, packagingFee, itemQtys, primaryImage, secondaryImage, secondaryOrixa, selectedOption]);
 
   // ─── Validation ─────────────────────────────────────────────────────────────
   const hasItems = Object.values(itemQtys).some((q) => q > 0);
@@ -205,6 +231,7 @@ export default function BoxAssembler({
             price: parseFloat(selectedOption.price),
           }
         : undefined,
+      packagingFee,
       note: note.trim() || undefined,
       total,
     };
@@ -280,10 +307,10 @@ export default function BoxAssembler({
         </div>
       )}
 
-      {/* 1. Orixá principal */}
+      {/* 1. Orixá/Entidade principal */}
       <div>
         <label className="block text-sm font-semibold text-night-700 mb-2">
-          Orixá principal <span className="text-ruby-500">*</span>
+          Orixá/Entidade principal <span className="text-ruby-500">*</span>
         </label>
         <div className="flex flex-wrap gap-2">
           {data.orixas.map((o) => (
@@ -335,6 +362,8 @@ export default function BoxAssembler({
                 ? `${opt.name} de ${primaryOrixa.name}`
                 : opt.name;
               const isSelected = primaryImage?.id === opt.id;
+              const resolvedImageUrl = getImageForOption(opt, primaryOrixa);
+
               return (
                 <button
                   key={opt.id}
@@ -346,11 +375,11 @@ export default function BoxAssembler({
                       : "border-night-200 bg-white text-night-700 hover:border-gold-300 hover:bg-gold-50/40"
                   }`}
                 >
-                  {opt.imageUrl ? (
+                  {resolvedImageUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={opt.imageUrl}
-                      alt={opt.name}
+                      src={resolvedImageUrl}
+                      alt={displayName}
                       className="w-8 h-8 rounded object-cover border border-night-200 shrink-0"
                     />
                   ) : (
@@ -381,15 +410,12 @@ export default function BoxAssembler({
             <span className="text-night-400 font-normal">(opcional)</span>
           </label>
           <p className="text-xs text-night-400 mt-0.5">
-            Deseja incluir uma segunda imagem na sua box? Escolha a entidade e o material.
+            Deseja incluir uma segunda imagem na sua box? Escolha a entidade ou orixá e seu material.
           </p>
         </div>
 
-        {/* Pergunta (a): Entidade da imagem secundária */}
+        {/* Escolha de Entidade da imagem secundária (sem o texto '(a) De qual entidade é essa imagem?') */}
         <div className="space-y-1.5">
-          <span className="block text-xs font-medium text-night-600">
-            (a) De qual entidade é essa imagem?
-          </span>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
@@ -423,11 +449,11 @@ export default function BoxAssembler({
           </div>
         </div>
 
-        {/* Pergunta (b): Material da imagem secundária */}
+        {/* Material da imagem secundária */}
         {data.imageOptions.length > 0 && (
           <div className="space-y-1.5 pt-1 border-t border-border-light">
             <span className="block text-xs font-medium text-night-600">
-              (b) Material da imagem
+              Material da imagem
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
@@ -450,6 +476,8 @@ export default function BoxAssembler({
                   ? `${opt.name} de ${secondaryOrixa.name}`
                   : opt.name;
                 const isSelected = secondaryImage?.id === opt.id;
+                const resolvedImageUrl = getImageForOption(opt, secondaryOrixa);
+
                 return (
                   <button
                     key={opt.id}
@@ -461,11 +489,11 @@ export default function BoxAssembler({
                         : "border-night-200 bg-white text-night-700 hover:border-gold-300 hover:bg-gold-50/40"
                     }`}
                   >
-                    {opt.imageUrl ? (
+                    {resolvedImageUrl ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
-                        src={opt.imageUrl}
-                        alt={opt.name}
+                        src={resolvedImageUrl}
+                        alt={displayName}
                         className="w-8 h-8 rounded object-cover border border-night-200 shrink-0"
                       />
                     ) : (
@@ -622,10 +650,20 @@ export default function BoxAssembler({
         />
       </div>
 
-      {/* 7. Total + Botão */}
+      {/* 7. Total discriminado + Botão */}
       <div className="border-t border-border-light pt-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-night-600">Total estimado</span>
+        {/* Discriminação da embalagem */}
+        <div className="space-y-1 text-xs text-night-500">
+          <div className="flex justify-between items-center">
+            <span>Embalagem</span>
+            <span className="font-medium text-night-700">
+              {formatPrice(packagingFee * 100)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-1 border-t border-night-100">
+          <span className="text-sm text-night-600 font-medium">Total</span>
           <div className="text-right">
             <span className="text-2xl font-bold text-night-900">
               {formatPrice(total * 100)}
@@ -635,7 +673,7 @@ export default function BoxAssembler({
 
         {!primaryOrixa && (
           <p className="text-xs text-ruby-500">
-            ⚠ Escolha um Orixá principal para continuar.
+            ⚠ Escolha um Orixá/Entidade principal para continuar.
           </p>
         )}
         {primaryOrixa && !hasItems && (
@@ -658,3 +696,4 @@ export default function BoxAssembler({
     </div>
   );
 }
+

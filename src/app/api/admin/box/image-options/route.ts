@@ -10,6 +10,14 @@ const boxImageOptionSchema = z.object({
   imageUrl: z.string().nullable().optional(),
   sortOrder: z.number().int().default(0),
   isActive: z.boolean().default(true),
+  entityImages: z
+    .array(
+      z.object({
+        orixaId: z.string().min(1),
+        imageUrl: z.string().min(1),
+      })
+    )
+    .optional(),
 });
 
 function isAdmin(role: string | null | undefined) {
@@ -25,6 +33,11 @@ export async function GET() {
   try {
     const options = await prisma.boxImageOption.findMany({
       orderBy: { sortOrder: "asc" },
+      include: {
+        images: {
+          select: { id: true, orixaId: true, imageUrl: true },
+        },
+      },
     });
 
     return NextResponse.json(
@@ -57,7 +70,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, price, imageUrl, sortOrder, isActive } = parsed.data;
+    const { name, price, imageUrl, sortOrder, isActive, entityImages } =
+      parsed.data;
+
+    const validEntityImages = (entityImages || []).filter(
+      (ei) => ei.imageUrl && ei.imageUrl.trim() !== ""
+    );
 
     const option = await prisma.boxImageOption.create({
       data: {
@@ -66,6 +84,20 @@ export async function POST(request: Request) {
         imageUrl: imageUrl || null,
         sortOrder,
         isActive,
+        images:
+          validEntityImages.length > 0
+            ? {
+                create: validEntityImages.map((ei) => ({
+                  orixaId: ei.orixaId,
+                  imageUrl: ei.imageUrl.trim(),
+                })),
+              }
+            : undefined,
+      },
+      include: {
+        images: {
+          select: { id: true, orixaId: true, imageUrl: true },
+        },
       },
     });
 

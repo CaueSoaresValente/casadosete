@@ -254,6 +254,8 @@ export default function CheckoutPage() {
             if (box.objectOption) {
               lines.push(`  └ Opção de objeto: ${box.objectOption.name}`);
             }
+            const packagingFee = box.packagingFee ?? 8.0;
+            lines.push(`  └ Embalagem: ${formatPrice(packagingFee * 100)}`);
             if (box.note) {
               lines.push(`  └ Observação: "${box.note}"`);
             }

@@ -29,7 +29,18 @@ export async function GET() {
       .findMany({
         where: { isActive: true },
         orderBy: { sortOrder: "asc" },
-        select: { id: true, name: true, price: true, imageUrl: true },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          imageUrl: true,
+          images: {
+            select: {
+              orixaId: true,
+              imageUrl: true,
+            },
+          },
+        },
       })
       .catch((err) => {
         console.warn("Could not query box_image_options (table may not exist yet):", err);
@@ -42,6 +53,7 @@ export async function GET() {
       ? {
           minItems: config.minItems,
           basePrice: config.basePrice.toString(),
+          packagingFee: config.packagingFee.toString(),
           boxImageUrl: config.boxImageUrl,
         }
       : null,
@@ -57,6 +69,7 @@ export async function GET() {
     imageOptions: imageOptions.map((o) => ({
       ...o,
       price: o.price.toString(),
+      images: o.images || [],
     })),
   });
 }

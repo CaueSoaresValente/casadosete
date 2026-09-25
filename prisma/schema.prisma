@@ -536,6 +536,8 @@ model Orixa {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  imageOptionImages BoxImageOptionImage[]
+
   @@map("orixas")
 }
 
@@ -564,7 +566,24 @@ model BoxImageOption {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  images    BoxImageOptionImage[]
+
   @@map("box_image_options")
+}
+
+model BoxImageOptionImage {
+  id                 String         @id @default(cuid())
+  boxImageOptionId   String         @map("box_image_option_id")
+  orixaId            String         @map("orixa_id")
+  imageUrl           String         @map("image_url")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  boxImageOption     BoxImageOption @relation(fields: [boxImageOptionId], references: [id], onDelete: Cascade)
+  orixa              Orixa          @relation(fields: [orixaId], references: [id], onDelete: Cascade)
+
+  @@unique([boxImageOptionId, orixaId])
+  @@map("box_image_option_images")
 }
 
 model BoxObjectOption {
@@ -580,12 +599,13 @@ model BoxObjectOption {
 }
 
 model BoxConfig {
-  id          String   @id @default("default")
+  id           String   @id @default("default")
   // minItems conta o TOTAL DE UNIDADES escolhidas (soma das quantidades), não itens distintos. null = sem mínimo.
-  minItems    Int?     @map("min_items")
-  basePrice   Decimal  @default(0) @map("base_price") @db.Decimal(10, 2) // 0 = sem valor base
-  boxImageUrl String?  @map("box_image_url") // Foto base da box
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  minItems     Int?     @map("min_items")
+  basePrice    Decimal  @default(0) @map("base_price") @db.Decimal(10, 2) // 0 = sem valor base
+  packagingFee Decimal  @default(8.00) @map("packaging_fee") @db.Decimal(10, 2) // Taxa fixa de embalagem
+  boxImageUrl  String?  @map("box_image_url") // Foto base da box
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("box_configs")
 }

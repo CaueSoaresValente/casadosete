@@ -48,6 +48,7 @@ const boxCustomizationSchema = z.object({
     })
     .optional()
     .nullable(),
+  packagingFee: z.number().optional().nullable(),
   note: z.string().optional().nullable(),
   total: z.number().optional(),
 });
@@ -279,8 +280,16 @@ export async function POST(request: Request) {
               dbObjectOption = { id: obj.id, name: obj.name, price: obj.price };
             }
 
-            // Server-calculated unit price
-            let recalculatedUnitPrice = boxItemsSum;
+            // Fetch box config for packaging fee
+            const dbBoxConfig = await tx.boxConfig.findUnique({
+              where: { id: "default" },
+              select: { packagingFee: true },
+            });
+            const dbPackagingFee =
+              dbBoxConfig?.packagingFee ?? new Prisma.Decimal(8.0);
+
+            // Server-calculated unit price (includes packagingFee)
+            let recalculatedUnitPrice = boxItemsSum.add(dbPackagingFee);
             if (dbPrimaryImage) {
               recalculatedUnitPrice = recalculatedUnitPrice.add(dbPrimaryImage.price);
             }
@@ -325,6 +334,7 @@ export async function POST(request: Request) {
                     price: Number(dbObjectOption.price),
                   }
                 : null,
+              packagingFee: Number(dbPackagingFee),
               note: box.note?.trim() || null,
               unitTotal: Number(recalculatedUnitPrice),
             };

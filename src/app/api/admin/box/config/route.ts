@@ -16,6 +16,10 @@ const configSchema = z.object({
     .number()
     .min(0, "Valor base não pode ser negativo")
     .optional(),
+  packagingFee: z
+    .number()
+    .min(0, "Taxa de embalagem não pode ser negativa")
+    .optional(),
   boxImageUrl: z.string().url("URL inválida").nullable().optional(),
 });
 
@@ -33,6 +37,7 @@ export async function GET() {
   return NextResponse.json({
     ...config,
     basePrice: config.basePrice.toString(),
+    packagingFee: config.packagingFee.toString(),
   });
 }
 
@@ -53,12 +58,14 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const { minItems, basePrice, boxImageUrl } = parsed.data;
+    const { minItems, basePrice, packagingFee, boxImageUrl } = parsed.data;
 
     const data: Prisma.BoxConfigUpdateInput = {};
     if (minItems !== undefined) data.minItems = minItems;
     if (basePrice !== undefined)
       data.basePrice = new Prisma.Decimal(basePrice.toString());
+    if (packagingFee !== undefined)
+      data.packagingFee = new Prisma.Decimal(packagingFee.toString());
     if (boxImageUrl !== undefined) data.boxImageUrl = boxImageUrl;
 
     const config = await prisma.boxConfig.upsert({
@@ -70,6 +77,9 @@ export async function PATCH(request: Request) {
         basePrice: new Prisma.Decimal(
           (basePrice ?? 0).toString()
         ),
+        packagingFee: new Prisma.Decimal(
+          (packagingFee ?? 8).toString()
+        ),
         boxImageUrl: boxImageUrl ?? null,
       },
     });
@@ -77,6 +87,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({
       ...config,
       basePrice: config.basePrice.toString(),
+      packagingFee: config.packagingFee.toString(),
     });
   } catch (error) {
     console.error("Error updating box config:", error);

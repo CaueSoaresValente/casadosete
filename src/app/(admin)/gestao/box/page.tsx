@@ -29,6 +29,12 @@ type BoxItem = {
   createdAt: string;
 };
 
+type BoxImageOptionImage = {
+  id?: string;
+  orixaId: string;
+  imageUrl: string;
+};
+
 type BoxImageOption = {
   id: string;
   name: string;
@@ -37,6 +43,7 @@ type BoxImageOption = {
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
+  images?: BoxImageOptionImage[];
 };
 
 type BoxObjectOption = {
@@ -52,6 +59,7 @@ type BoxConfig = {
   id: string;
   minItems: number | null;
   basePrice: string; // Decimal serialized as string
+  packagingFee: string; // Decimal serialized as string
   boxImageUrl: string | null;
   updatedAt?: string;
 };
@@ -80,6 +88,7 @@ const emptyImageOptionForm = {
   imageUrl: "",
   sortOrder: 0,
   isActive: true,
+  entityImages: {} as Record<string, string>,
 };
 
 const emptyOptionForm = {
@@ -1089,6 +1098,7 @@ function BoxItemsTab() {
 
 function BoxImageOptionsTab() {
   const [options, setOptions] = useState<BoxImageOption[]>([]);
+  const [orixas, setOrixas] = useState<Orixa[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
@@ -1097,6 +1107,7 @@ function BoxImageOptionsTab() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingOrixaId, setUploadingOrixaId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [deleteModal, setDeleteModal] = useState<{
@@ -1108,10 +1119,18 @@ function BoxImageOptionsTab() {
 
   const fetchOptions = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/box/image-options");
-      if (!res.ok) throw new Error("Erro ao carregar");
-      const data: BoxImageOption[] = await res.json();
+      const [resOpts, resOrixas] = await Promise.all([
+        fetch("/api/admin/box/image-options"),
+        fetch("/api/admin/box/orixas"),
+      ]);
+      if (!resOpts.ok) throw new Error("Erro ao carregar opções");
+      const data: BoxImageOption[] = await resOpts.json();
       setOptions(data);
+
+      if (resOrixas.ok) {
+        const orixasData: Orixa[] = await resOrixas.json();
+        setOrixas(orixasData.filter((o) => o.isActive));
+      }
     } catch {
       toast.error("Erro ao carregar opções de imagem");
     } finally {
@@ -1132,6 +1151,13 @@ function BoxImageOptionsTab() {
   };
 
   const openEdit = (opt: BoxImageOption) => {
+    const entityImagesMap: Record<string, string> = {};
+    if (opt.images && opt.images.length > 0) {
+      for (const img of opt.images) {
+        entityImagesMap[img.orixaId] = img.imageUrl;
+      }
+    }
+
     setEditingId(opt.id);
     setForm({
       name: opt.name,
@@ -1139,6 +1165,7 @@ function BoxImageOptionsTab() {
       imageUrl: opt.imageUrl || "",
       sortOrder: opt.sortOrder,
       isActive: opt.isActive,
+      entityImages: entityImagesMap,
     });
     setFormError("");
     setShowForm(true);
@@ -1149,6 +1176,7 @@ function BoxImageOptionsTab() {
     setEditingId(null);
     setForm(emptyImageOptionForm);
     setFormError("");
+    setUploadingOrixaId(null);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1167,13 +1195,52 @@ function BoxImageOptionsTab() {
       if (!res.ok) throw new Error("Falha no upload");
       const data: { url: string } = await res.json();
       setForm((f) => ({ ...f, imageUrl: data.url }));
-      toast.success("Foto da opção de imagem enviada!");
+      toast.success("Foto padrão enviada!");
     } catch {
       toast.error("Erro ao enviar foto");
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const handleEntityImageUpload = async (
+    orixaId: string,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingOrixaId(orixaId);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Falha no upload");
+      const data: { url: string } = await res.json();
+      setForm((f) => ({
+        ...f,
+        entityImages: { ...f.entityImages, [orixaId]: data.url },
+      }));
+      toast.success("Foto da entidade enviada!");
+    } catch {
+      toast.error("Erro ao enviar foto da entidade");
+    } finally {
+      setUploadingOrixaId(null);
+      e.target.value = "";
+    }
+  };
+
+  const removeEntityImage = (orixaId: string) => {
+    setForm((f) => {
+      const next = { ...f.entityImages };
+      delete next[orixaId];
+      return { ...f, entityImages: next };
+    });
   };
 
   const toggleOptionActive = async (opt: BoxImageOption) => {
@@ -1212,6 +1279,10 @@ function BoxImageOptionsTab() {
       return;
     }
 
+    const entityImagesPayload = Object.entries(form.entityImages || {})
+      .filter(([, url]) => url && url.trim() !== "")
+      .map(([orixaId, imageUrl]) => ({ orixaId, imageUrl: imageUrl.trim() }));
+
     try {
       const url = editingId
         ? `/api/admin/box/image-options/${editingId}`
@@ -1227,6 +1298,7 @@ function BoxImageOptionsTab() {
           imageUrl: form.imageUrl || null,
           sortOrder: Number(form.sortOrder),
           isActive: form.isActive,
+          entityImages: entityImagesPayload,
         }),
       });
 
@@ -1312,13 +1384,16 @@ function BoxImageOptionsTab() {
             <thead className="bg-night-50 border-b border-night-100 text-xs">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-night-600">
-                  Foto
+                  Foto Padrão
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-night-600">
                   Material
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-night-600">
                   Preço
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-night-600">
+                  Fotos por Entidade
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-night-600">
                   Ordem
@@ -1330,83 +1405,92 @@ function BoxImageOptionsTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-night-50">
-              {options.map((opt) => (
-                <tr
-                  key={opt.id}
-                  className="hover:bg-night-50 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    {opt.imageUrl ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={opt.imageUrl}
-                        alt={opt.name}
-                        className="w-10 h-10 object-cover rounded-lg border border-night-200"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-night-100 border border-night-200 flex items-center justify-center text-night-400">
-                        <ImageIcon className="w-5 h-5" />
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-night-800">
-                    {opt.name}
-                  </td>
-                  <td className="px-4 py-3 text-night-700 font-medium">
-                    R${" "}
-                    {Number(opt.price).toLocaleString("pt-BR", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </td>
-                  <td className="px-4 py-3 text-night-500">{opt.sortOrder}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleOptionActive(opt)}
-                      className={[
-                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer border",
-                        opt.isActive
-                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                          : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100",
-                      ].join(" ")}
-                      title={
-                        opt.isActive
-                          ? "Clique para desativar"
-                          : "Clique para ativar"
-                      }
-                    >
-                      <span
+              {options.map((opt) => {
+                const entityImgCount = opt.images ? opt.images.length : 0;
+                return (
+                  <tr
+                    key={opt.id}
+                    className="hover:bg-night-50 transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      {opt.imageUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={opt.imageUrl}
+                          alt={opt.name}
+                          className="w-10 h-10 object-cover rounded-lg border border-night-200"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-night-100 border border-night-200 flex items-center justify-center text-night-400">
+                          <ImageIcon className="w-5 h-5" />
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-night-800">
+                      {opt.name}
+                    </td>
+                    <td className="px-4 py-3 text-night-700 font-medium">
+                      R${" "}
+                      {Number(opt.price).toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-night-600">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-night-100 text-night-700 font-medium">
+                        {entityImgCount}{" "}
+                        {entityImgCount === 1 ? "foto" : "fotos"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-night-500">{opt.sortOrder}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleOptionActive(opt)}
                         className={[
-                          "w-1.5 h-1.5 rounded-full",
-                          opt.isActive ? "bg-green-500" : "bg-red-400",
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer border",
+                          opt.isActive
+                            ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                            : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100",
                         ].join(" ")}
-                      />
-                      {opt.isActive ? "Ativo" : "Inativo"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(opt)}
-                        className="p-1.5 text-night-400 hover:text-night-700 hover:bg-night-100 rounded-lg transition-colors"
-                        title="Editar"
+                        title={
+                          opt.isActive
+                            ? "Clique para desativar"
+                            : "Clique para ativar"
+                        }
                       >
-                        <Pencil className="w-4 h-4" />
+                        <span
+                          className={[
+                            "w-1.5 h-1.5 rounded-full",
+                            opt.isActive ? "bg-green-500" : "bg-red-400",
+                          ].join(" ")}
+                        />
+                        {opt.isActive ? "Ativo" : "Inativo"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteClick(opt)}
-                        className="p-1.5 text-night-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(opt)}
+                          className="p-1.5 text-night-400 hover:text-night-700 hover:bg-night-100 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClick(opt)}
+                          className="p-1.5 text-night-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1415,7 +1499,7 @@ function BoxImageOptionsTab() {
       {/* Form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-night-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold text-night-900">
               {editingId ? "Editar Opção de Imagem" : "Nova Opção de Imagem"}
             </h2>
@@ -1460,10 +1544,13 @@ function BoxImageOptionsTab() {
                 </div>
               </div>
 
-              {/* Upload de foto */}
+              {/* Upload de foto padrão / fallback */}
               <div>
                 <label className="block text-sm font-medium text-night-700 mb-1">
-                  Foto da opção
+                  Foto padrão / Fallback{" "}
+                  <span className="text-night-400 font-normal">
+                    (usada caso uma entidade não tenha foto própria)
+                  </span>
                 </label>
                 <div className="flex items-center gap-3">
                   {form.imageUrl ? (
@@ -1471,14 +1558,14 @@ function BoxImageOptionsTab() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={form.imageUrl}
-                        alt="Preview"
+                        alt="Preview padrão"
                         className="w-16 h-16 object-cover rounded-lg border border-night-200"
                       />
                       <button
                         type="button"
                         onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
                         className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow hover:bg-red-600 transition-colors"
-                        title="Remover foto"
+                        title="Remover foto padrão"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -1510,7 +1597,7 @@ function BoxImageOptionsTab() {
                       ) : (
                         <>
                           <Plus className="w-3.5 h-3.5" />
-                          {form.imageUrl ? "Trocar foto" : "Escolher foto"}
+                          {form.imageUrl ? "Trocar foto padrão" : "Escolher foto padrão"}
                         </>
                       )}
                     </label>
@@ -1519,6 +1606,99 @@ function BoxImageOptionsTab() {
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* Seção Fotos por Entidade */}
+              <div className="border border-night-200 rounded-xl p-3.5 bg-night-50/50 space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-night-800">
+                    Fotos por Entidade / Orixá
+                  </h3>
+                  <p className="text-xs text-night-500 mt-0.5">
+                    Cadastre a foto deste material específica para cada entidade.
+                  </p>
+                </div>
+
+                {orixas.length === 0 ? (
+                  <p className="text-xs text-night-400 italic">
+                    Nenhuma entidade ativa encontrada no momento.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {orixas.map((orixa) => {
+                      const currentUrl = form.entityImages?.[orixa.id];
+                      const isUploading = uploadingOrixaId === orixa.id;
+                      const inputId = `entity-upload-${orixa.id}`;
+
+                      return (
+                        <div
+                          key={orixa.id}
+                          className="flex items-center justify-between gap-3 p-2 bg-white rounded-lg border border-night-200 text-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="w-3 h-3 rounded-full shrink-0 border border-white shadow-xs"
+                              style={{ backgroundColor: orixa.colorHex }}
+                            />
+                            <span className="font-medium text-night-800 truncate">
+                              {orixa.name}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {currentUrl ? (
+                              <div className="flex items-center gap-1.5">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={currentUrl}
+                                  alt={orixa.name}
+                                  className="w-7 h-7 object-cover rounded border border-night-200"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeEntityImage(orixa.id)}
+                                  className="text-red-500 hover:text-red-700 p-1"
+                                  title={`Remover foto de ${orixa.name}`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-night-400 italic">
+                                Sem foto
+                              </span>
+                            )}
+
+                            <input
+                              id={inputId}
+                              type="file"
+                              accept="image/*"
+                              disabled={isUploading}
+                              onChange={(e) => handleEntityImageUpload(orixa.id, e)}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor={inputId}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs border border-night-200 rounded cursor-pointer hover:bg-night-50 text-night-700 font-medium transition-colors"
+                            >
+                              {isUploading ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  Enviando…
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-3 h-3" />
+                                  {currentUrl ? "Trocar" : "Adicionar foto"}
+                                </>
+                              )}
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Ordem */}
@@ -1980,6 +2160,7 @@ function ConfigTab() {
   // Local form state (strings for inputs)
   const [minItems, setMinItems] = useState<string>("");
   const [basePrice, setBasePrice] = useState<string>("0");
+  const [packagingFee, setPackagingFee] = useState<string>("8.00");
   const [boxImageUrl, setBoxImageUrl] = useState<string>("");
 
   const fetchConfig = useCallback(async () => {
@@ -1990,6 +2171,7 @@ function ConfigTab() {
       setConfig(data);
       setMinItems(data.minItems != null ? String(data.minItems) : "");
       setBasePrice(data.basePrice ?? "0");
+      setPackagingFee(data.packagingFee ?? "8.00");
       setBoxImageUrl(data.boxImageUrl ?? "");
     } catch {
       toast.error("Erro ao carregar configuração");
@@ -2035,6 +2217,7 @@ function ConfigTab() {
 
     const parsedMin = minItems.trim() === "" ? null : parseInt(minItems, 10);
     const parsedPrice = parseFloat(basePrice) || 0;
+    const parsedPackaging = parseFloat(packagingFee);
 
     if (parsedMin !== null && (isNaN(parsedMin) || parsedMin < 1)) {
       setError("Mínimo de unidades deve ser um número inteiro positivo.");
@@ -2046,6 +2229,11 @@ function ConfigTab() {
       setSaving(false);
       return;
     }
+    if (isNaN(parsedPackaging) || parsedPackaging < 0) {
+      setError("Taxa de embalagem não pode ser negativa.");
+      setSaving(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/admin/box/config", {
@@ -2054,6 +2242,7 @@ function ConfigTab() {
         body: JSON.stringify({
           minItems: parsedMin,
           basePrice: parsedPrice,
+          packagingFee: parsedPackaging,
           boxImageUrl: boxImageUrl || null,
         }),
       });
@@ -2133,6 +2322,28 @@ function ConfigTab() {
             />
           </div>
           <p className="text-xs text-night-400 mt-1">0 = sem valor base.</p>
+        </div>
+
+        {/* Taxa de embalagem */}
+        <div>
+          <label className="block text-sm font-medium text-night-700 mb-1">
+            Taxa de embalagem (R$)
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-night-500">R$</span>
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              value={packagingFee}
+              onChange={(e) => setPackagingFee(e.target.value)}
+              className="w-40 px-3 py-2 border border-night-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-400"
+              placeholder="8.00"
+            />
+          </div>
+          <p className="text-xs text-night-400 mt-1">
+            Valor fixo somado automaticamente ao total de qualquer box (obrigatório).
+          </p>
         </div>
 
         {/* Foto da box */}

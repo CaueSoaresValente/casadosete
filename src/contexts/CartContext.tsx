@@ -26,6 +26,7 @@ export type BoxCustomization = {
   };
   items: Array<{ id: string; name: string; price: number; quantity: number }>;
   objectOption?: { id: string; name: string; price: number };
+  packagingFee?: number;
   note?: string;
   total: number;
 };

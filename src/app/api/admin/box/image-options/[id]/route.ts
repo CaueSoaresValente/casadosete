@@ -10,6 +10,14 @@ const patchBoxImageOptionSchema = z.object({
   imageUrl: z.string().nullable().optional(),
   sortOrder: z.number().int().optional(),
   isActive: z.boolean().optional(),
+  entityImages: z
+    .array(
+      z.object({
+        orixaId: z.string().min(1),
+        imageUrl: z.string(),
+      })
+    )
+    .optional(),
 });
 
 function isAdmin(role: string | null | undefined) {
@@ -38,7 +46,8 @@ export async function PATCH(
       );
     }
 
-    const { name, price, imageUrl, sortOrder, isActive } = parsed.data;
+    const { name, price, imageUrl, sortOrder, isActive, entityImages } =
+      parsed.data;
 
     const data: Prisma.BoxImageOptionUpdateInput = {};
     if (name !== undefined) data.name = name;
@@ -47,10 +56,49 @@ export async function PATCH(
     if (sortOrder !== undefined) data.sortOrder = sortOrder;
     if (isActive !== undefined) data.isActive = isActive;
 
-    const option = await prisma.boxImageOption.update({
-      where: { id },
-      data,
+    const option = await prisma.$transaction(async (tx) => {
+      await tx.boxImageOption.update({
+        where: { id },
+        data,
+      });
+
+      if (entityImages !== undefined) {
+        // Delete existing relations
+        await tx.boxImageOptionImage.deleteMany({
+          where: { boxImageOptionId: id },
+        });
+
+        const validImages = entityImages.filter(
+          (ei) => ei.imageUrl && ei.imageUrl.trim() !== ""
+        );
+
+        if (validImages.length > 0) {
+          await tx.boxImageOptionImage.createMany({
+            data: validImages.map((ei) => ({
+              boxImageOptionId: id,
+              orixaId: ei.orixaId,
+              imageUrl: ei.imageUrl.trim(),
+            })),
+          });
+        }
+      }
+
+      return tx.boxImageOption.findUnique({
+        where: { id },
+        include: {
+          images: {
+            select: { id: true, orixaId: true, imageUrl: true },
+          },
+        },
+      });
     });
+
+    if (!option) {
+      return NextResponse.json(
+        { error: "Opção de imagem não encontrada" },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       ...option,

@@ -8,6 +8,7 @@ export async function getBoxConfig() {
       id: "default",
       minItems: null,
       basePrice: 0,
+      packagingFee: 8.0,
     },
   });
 }
