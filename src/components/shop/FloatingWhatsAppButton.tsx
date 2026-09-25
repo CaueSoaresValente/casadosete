@@ -2,7 +2,6 @@
 
 import { useCart } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/utils";
-import { MessageCircle } from "lucide-react";
 
 const WHATSAPP_NUMBER = "5511976672291";
 
@@ -47,7 +46,7 @@ export function FloatingWhatsAppButton() {
         "Olá, Casa do 7! 🌿 Gostaria de tirar uma dúvida sobre os produtos da loja.";
     }
 
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(
       text
     )}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");

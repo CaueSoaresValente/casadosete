@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus,
   Pencil,
@@ -20,6 +20,7 @@ type Category = {
   name: string;
   slug: string;
   description: string | null;
+  imageUrl: string | null;
   parentId: string | null;
   sortOrder: number;
   isActive: boolean;
@@ -31,6 +32,7 @@ type FormData = {
   name: string;
   slug: string;
   description: string;
+  imageUrl: string;
   parentId: string;
   sortOrder: number;
   isActive: boolean;
@@ -40,6 +42,7 @@ const emptyForm: FormData = {
   name: "",
   slug: "",
   description: "",
+  imageUrl: "",
   parentId: "",
   sortOrder: 0,
   isActive: true,
@@ -52,6 +55,8 @@ export default function AdminCategoriesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
@@ -83,6 +88,7 @@ export default function AdminCategoriesPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCategories();
   }, [fetchCategories]);
 
@@ -92,6 +98,31 @@ export default function AdminCategoriesPage() {
       name,
       slug: editingId ? prev.slug : slugify(name),
     }));
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Falha no upload");
+      const data: { url: string } = await res.json();
+      setForm((f) => ({ ...f, imageUrl: data.url }));
+      toast.success("Foto da categoria enviada!");
+    } catch {
+      toast.error("Erro ao enviar foto");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const openCreateForm = (parentId?: string) => {
@@ -107,6 +138,7 @@ export default function AdminCategoriesPage() {
       name: cat.name,
       slug: cat.slug,
       description: cat.description || "",
+      imageUrl: cat.imageUrl || "",
       parentId: cat.parentId || "",
       sortOrder: cat.sortOrder,
       isActive: cat.isActive,
@@ -122,10 +154,9 @@ export default function AdminCategoriesPage() {
 
     const payload = {
       ...form,
+      imageUrl: form.imageUrl.trim() || null,
       parentId: form.parentId || null,
       description: form.description || null,
-      // imageUrl não é gerenciado por este formulário; omitido para não
-      // sobrescrever o valor salvo no banco.
     };
 
     try {
@@ -315,6 +346,59 @@ export default function AdminCategoriesPage() {
                 />
               </div>
 
+              {/* Foto da categoria */}
+              <div>
+                <label className="block text-sm font-medium text-night-700 mb-1">
+                  Foto da categoria (opcional)
+                </label>
+                {form.imageUrl && (
+                  <div className="mb-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={form.imageUrl}
+                      alt="Prévia da categoria"
+                      className="w-24 h-24 object-cover rounded-lg border border-night-200"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                  />
+                  <button
+                    type="button"
+                    disabled={uploadingImage}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-1.5 text-sm border border-night-200 rounded-lg hover:bg-night-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {uploadingImage && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    )}
+                    {uploadingImage
+                      ? "Enviando…"
+                      : form.imageUrl
+                      ? "Trocar foto"
+                      : "Escolher foto"}
+                  </button>
+                  {form.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                      className="text-xs text-ruby-600 hover:underline"
+                    >
+                      Remover foto
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-night-400 mt-1">
+                  Exibida nos cards de categoria da página inicial.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-night-700 mb-1">
                   Categoria pai (opcional)
@@ -489,9 +573,24 @@ function CategoryRow({
     <>
       <tr className="hover:bg-night-50 transition-colors">
         <td className="px-4 py-3">
-          <div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 1.25}rem` }}>
+          <div
+            className="flex items-center gap-2.5"
+            style={{ paddingLeft: `${depth * 1.25}rem` }}
+          >
             {depth > 0 && (
               <ChevronRight className="w-3 h-3 text-night-300 shrink-0" />
+            )}
+            {category.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={category.imageUrl}
+                alt={category.name}
+                className="w-8 h-8 rounded-lg object-cover border border-night-200 shrink-0 bg-night-50"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-night-100 flex items-center justify-center text-night-400 text-xs shrink-0">
+                <FolderTree className="w-4 h-4" />
+              </div>
             )}
             <span className="text-sm font-medium text-night-800">
               {category.name}

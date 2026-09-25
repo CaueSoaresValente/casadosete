@@ -277,7 +277,7 @@ export default function CheckoutPage() {
         subtotal * 100
       )}*\n_(Frete a combinar)_\n\n*👤 Dados do cliente:*\nNome: ${name.trim()}\nE-mail: ${email.trim()}\nTelefone: ${phone}\n\n*📍 Endereço de entrega:*\n${addressText}\n\nComo posso prosseguir com o pagamento e envio? 🙏`;
 
-      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+      const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(text)}`;
       window.open(whatsappUrl, "_blank", "noopener,noreferrer");
 
       clearCart();
